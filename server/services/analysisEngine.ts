@@ -3,12 +3,17 @@ import fs from 'fs';
 import path from 'path';
 
 export type AnalysisType = 
+  | 'micro-cognitive'
   | 'cognitive' 
   | 'comprehensive-cognitive' 
+  | 'micro-psychological'
   | 'psychological' 
   | 'comprehensive-psychological' 
+  | 'micro-psychopathological'
   | 'psychopathological' 
   | 'comprehensive-psychopathological';
+
+type Verbosity = 'micro' | 'normal' | 'comprehensive';
 
 export interface AnalysisQuestion {
   id: string;
@@ -29,7 +34,6 @@ export class AnalysisEngine {
 
   constructor() {
     this.llmService = new LLMService();
-    // Load the complete instructions that must be sent with every LLM request
     this.completeInstructions = this.loadCompleteInstructions();
   }
 
@@ -43,20 +47,17 @@ export class AnalysisEngine {
     }
   }
 
+  private getVerbosity(analysisType: AnalysisType): Verbosity {
+    if (analysisType.startsWith('micro-')) return 'micro';
+    if (analysisType.startsWith('comprehensive-')) return 'comprehensive';
+    return 'normal';
+  }
+
   getQuestions(analysisType: AnalysisType): AnalysisQuestion[] {
-    switch (analysisType) {
-      case 'cognitive':
-      case 'comprehensive-cognitive':
-        return this.getCognitiveQuestions();
-      case 'psychological':
-      case 'comprehensive-psychological':
-        return this.getPsychologicalQuestions();
-      case 'psychopathological':
-      case 'comprehensive-psychopathological':
-        return this.getPsychopathologicalQuestions();
-      default:
-        throw new Error(`Unknown analysis type: ${analysisType}`);
-    }
+    if (analysisType.includes('cognitive')) return this.getCognitiveQuestions();
+    if (analysisType.includes('psychological')) return this.getPsychologicalQuestions();
+    if (analysisType.includes('psychopathological')) return this.getPsychopathologicalQuestions();
+    throw new Error(`Unknown analysis type: ${analysisType}`);
   }
 
   async *processAnalysis(
@@ -65,34 +66,41 @@ export class AnalysisEngine {
     additionalContext: string | undefined,
     provider: LLMProvider
   ): AsyncGenerator<{ type: 'summary' | 'question'; data: any }> {
-    // First, generate summary and categorization
-    yield* this.generateSummary(text, provider);
+    const verbosity = this.getVerbosity(analysisType);
 
-    // Get questions for the analysis type
+    yield* this.generateSummary(text, provider, verbosity);
+
     const questions = this.getQuestions(analysisType);
     
-    // Process questions in batches of 5 with 10-second intervals
     const batchSize = 5;
     for (let i = 0; i < questions.length; i += batchSize) {
       const batch = questions.slice(i, i + batchSize);
       
       for (const question of batch) {
-        yield* this.processQuestion(question, text, additionalContext, provider);
+        yield* this.processQuestion(question, text, additionalContext, provider, verbosity);
       }
       
-      // Wait 10 seconds before next batch (except for the last batch)
       if (i + batchSize < questions.length) {
         await this.delay(10000);
       }
     }
 
-    // For comprehensive modes, implement additional phases
-    if (analysisType.includes('comprehensive')) {
+    if (verbosity === 'comprehensive') {
       yield* this.processComprehensivePhases(analysisType, text, provider);
     }
   }
 
-  private async *generateSummary(text: string, provider: LLMProvider): AsyncGenerator<{ type: 'summary'; data: any }> {
+  private async *generateSummary(
+    text: string,
+    provider: LLMProvider,
+    verbosity: Verbosity
+  ): AsyncGenerator<{ type: 'summary'; data: any }> {
+    const lengthInstruction = verbosity === 'micro'
+      ? 'Be extremely brief — one short sentence per field.'
+      : verbosity === 'comprehensive'
+      ? 'Be thorough and detailed in your summary.'
+      : 'Be concise but informative.';
+
     const prompt = `${this.completeInstructions}
 
 TASK: Summarize the following text and categorize it. Provide:
@@ -101,36 +109,33 @@ TASK: Summarize the following text and categorize it. Provide:
 3. Length (character and word count)
 4. Style description
 
+${lengthInstruction}
+
 Text: ${text}`;
 
     let summary = '';
     for await (const chunk of this.llmService.streamMessage(provider, prompt)) {
       summary += chunk;
-      yield {
-        type: 'summary',
-        data: {
-          content: summary,
-          complete: false
-        }
-      };
+      yield { type: 'summary', data: { content: summary, complete: false } };
     }
-
-    yield {
-      type: 'summary',
-      data: {
-        content: summary,
-        complete: true
-      }
-    };
+    yield { type: 'summary', data: { content: summary, complete: true } };
   }
 
   private async *processQuestion(
     question: AnalysisQuestion,
     text: string,
     additionalContext: string | undefined,
-    provider: LLMProvider
+    provider: LLMProvider,
+    verbosity: Verbosity
   ): AsyncGenerator<{ type: 'question'; data: any }> {
     const contextPrompt = additionalContext ? `Additional context: ${additionalContext}\n\n` : '';
+
+    const lengthInstruction = verbosity === 'micro'
+      ? `RESPONSE LENGTH: Be extremely concise. Your entire answer (excluding the score line) must be no more than 3 sentences. Lead with your sharpest observation, then give the score. No padding, no hedging.`
+      : verbosity === 'comprehensive'
+      ? `RESPONSE LENGTH: This is a comprehensive analysis. Give an exhaustive, fully developed response. Quote extensively from the text. Explore every dimension of the question with maximum analytical depth. Do not truncate your thinking.`
+      : `RESPONSE LENGTH: Give a focused but substantive answer — enough to demonstrate the reasoning behind the score, no more.`;
+
     const prompt = `${this.completeInstructions}
 
 ${contextPrompt}Answer this question in connection with this text: ${question.question}
@@ -151,6 +156,8 @@ DO NOT GIVE CREDIT MERELY FOR USE OF JARGON OR FOR REFERENCING AUTHORITIES. FOCU
 
 Use NO formatting markup whatsoever - no **, *, ##, +++, ---, ***, ###, etc. Write in plain text only.
 
+${lengthInstruction}
+
 Structure your response as:
 [Your analysis with specific quotations and reasoning]
 
@@ -161,23 +168,12 @@ Score: XX/100`;
       answer += chunk;
       yield {
         type: 'question',
-        data: {
-          questionId: question.id,
-          question: question.question,
-          answer,
-          complete: false
-        }
+        data: { questionId: question.id, question: question.question, answer, complete: false }
       };
     }
-
     yield {
       type: 'question',
-      data: {
-        questionId: question.id,
-        question: question.question,
-        answer,
-        complete: true
-      }
+      data: { questionId: question.id, question: question.question, answer, complete: true }
     };
   }
 
@@ -186,17 +182,11 @@ Score: XX/100`;
     text: string,
     provider: LLMProvider
   ): AsyncGenerator<{ type: 'question'; data: any }> {
-    // Phase 2: Pushback if scores < 95
-    // Phase 3: Walmart metric enforcement  
-    // Phase 4: Final validation
-    // Implementation would follow the detailed protocols from the specification
-    
-    // For now, yielding a placeholder phase
     yield {
       type: 'question',
       data: {
         questionId: 'phase2',
-        question: 'Comprehensive Analysis - Phase 2 (Pushback Protocol)',
+        question: 'Comprehensive Analysis — Phase 2 (Pushback Protocol)',
         answer: 'Reviewing scores and challenging evaluations below 95/100...',
         complete: true
       }
@@ -250,12 +240,25 @@ Score: XX/100`;
   }
 
   private getPsychopathologicalQuestions(): AnalysisQuestion[] {
-    // These would be implemented based on the full specification
-    // For now, returning a placeholder set
     return [
-      { id: 'pp1', question: 'Psychopathological assessment question 1', order: 1 },
-      { id: 'pp2', question: 'Psychopathological assessment question 2', order: 2 },
-      // ... more questions would be added based on the full protocol
+      { id: 'pp1', question: 'Is there evidence of formal thought disorder — loosening of associations, tangentiality, or incoherence — or is the thinking tightly organized?', order: 1 },
+      { id: 'pp2', question: 'Does the text show signs of paranoid ideation — ideas of reference, persecutory themes, or pathological suspiciousness?', order: 2 },
+      { id: 'pp3', question: 'Is there evidence of grandiosity — an inflated sense of special status, mission, or powers not grounded in reality?', order: 3 },
+      { id: 'pp4', question: 'Does the writing show affective dysregulation — inappropriate affect, extreme emotional swings, or flattened affect?', order: 4 },
+      { id: 'pp5', question: 'Is reality testing intact? Does the author distinguish clearly between fantasy and fact, or is the boundary blurred?', order: 5 },
+      { id: 'pp6', question: 'Is there evidence of obsessional thinking — intrusive, repetitive, ego-dystonic ideation — or compulsive ideational patterns?', order: 6 },
+      { id: 'pp7', question: 'Are there markers of depressive cognition — hopelessness, self-condemnation, nihilism, or anhedonic framing of experience?', order: 7 },
+      { id: 'pp8', question: 'Is there evidence of hypomanic or manic ideation — pressured quality, flight of ideas, decreased need for logical grounding?', order: 8 },
+      { id: 'pp9', question: 'Does the text reveal dissociative phenomena — depersonalization, derealization, identity fragmentation, or discontinuities in the narrative self?', order: 9 },
+      { id: 'pp10', question: 'Are there narcissistic injury markers — extreme sensitivity to perceived slights, rageful responses to criticism, entitlement?', order: 10 },
+      { id: 'pp11', question: 'Is there evidence of splitting as a dominant defensive operation — idealizing and devaluing alternately, with no tolerance for ambivalence?', order: 11 },
+      { id: 'pp12', question: 'Does the text show impaired impulse regulation — evidence of acting out ideation, poor delay of gratification in argument?', order: 12 },
+      { id: 'pp13', question: 'Is there magical or concrete thinking — failure to sustain abstraction, over-literalism, or belief in thought-action fusion?', order: 13 },
+      { id: 'pp14', question: 'Does the author show evidence of somatic preoccupation or hypochondriacal ideation — excessive focus on bodily states, health, decay?', order: 14 },
+      { id: 'pp15', question: 'Is there evidence of social-pragmatic failure — inability to gauge audience, violation of conversational norms, tone-deafness?', order: 15 },
+      { id: 'pp16', question: 'Does the text show antisocial or psychopathic features — callousness, instrumental use of others, absence of guilt or empathy markers?', order: 16 },
+      { id: 'pp17', question: 'Is there evidence of anxiety dysregulation — catastrophizing, excessive hedging, or paralytic ambivalence?', order: 17 },
+      { id: 'pp18', question: 'Overall: does the psychopathological profile, if any emerges, represent a consistent diagnostic picture, or are the markers scattered and non-specific?', order: 18 },
     ];
   }
 

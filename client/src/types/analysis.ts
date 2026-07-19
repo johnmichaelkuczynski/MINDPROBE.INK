@@ -1,8 +1,11 @@
 export type AnalysisType = 
+  | 'micro-cognitive'
   | 'cognitive' 
   | 'comprehensive-cognitive' 
+  | 'micro-psychological'
   | 'psychological' 
   | 'comprehensive-psychological' 
+  | 'micro-psychopathological'
   | 'psychopathological' 
   | 'comprehensive-psychopathological';
 
