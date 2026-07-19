@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "DtzWf4zqB_cXoqOEPw1Am"
+uri = "file://README.md"
+type = "text"
+title = "Mind Reader — README"
