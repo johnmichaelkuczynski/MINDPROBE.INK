@@ -1,6 +1,6 @@
-# 🧠 Mind Reader — Cognitive & Psychological Profiler
+# 🧠 Mind Probe — Cognitive & Psychological Profiler
 
-Mind Reader is a professional-grade cognitive, psychological, and psychopathological analysis engine. Paste or upload any text sample and receive a deep, structured profile across six analysis types — powered by your choice of four state-of-the-art AI models with real-time streaming results.
+Mind Probe is a professional-grade cognitive, psychological, and psychopathological analysis engine. Paste or upload any text sample and receive a deep, structured profile across six analysis types — powered by your choice of four state-of-the-art AI models with real-time streaming results.
 
 ---
 
@@ -26,103 +26,33 @@ Mind Reader is a professional-grade cognitive, psychological, and psychopatholog
 
 ---
 
-## 🤖 AI Engines (LLM Selection)
+## 🤖 AI Engines (ZHI 1–4)
 
-| Engine | Provider | Character |
-|--------|----------|-----------|
-| **ZHI 1** | OpenAI GPT | Primary analysis engine — balanced and precise |
-| **ZHI 2** | Anthropic Claude | Alternative reasoning model — nuanced and thorough |
-| **ZHI 3** | DeepSeek | Specialised profiling engine — pattern-focused |
-| **ZHI 4** | Perplexity | Research-focused model — contextually grounded |
+Mind Probe gives you direct access to four world-class AI reasoning engines — switch freely between them to compare perspectives on the same text, or settle on the one that best fits your professional workflow.
 
-All four engines are fully interchangeable. Switch between them freely to compare perspectives on the same text.
+| Engine | Character |
+|--------|-----------|
+| **ZHI 1** | Primary analysis engine — balanced, precise, and consistent |
+| **ZHI 2** | Alternative reasoning model — nuanced, thorough, and reflective |
+| **ZHI 3** | Specialised profiling engine — pattern-focused and incisive |
+| **ZHI 4** | Research-focused model — contextually grounded and rigorous |
 
 ---
 
-## 🛠 Technical Features
+## ✨ Key Capabilities
 
-- **Real-Time Streaming** — Responses appear token-by-token via Server-Sent Events (SSE) as the AI processes each question. No waiting for the full response.
-- **Batch Question Processing** — Questions are sent to the LLM in groups of 5 with controlled pacing to stay within token limits and ensure consistent output quality.
-- **File Processing** — Supports PDF (via `pdf-parse`), Microsoft Word (via `mammoth`), and plain text uploads with automatic text extraction.
-- **Large Text Chunking** — Texts over 1,000 words are automatically detected and split into selectable chunks so you control exactly what gets analysed.
-- **Dialogue System** — Post-analysis conversation mode lets you interrogate the results, raise concerns, or request a full regeneration with your feedback incorporated.
-- **Drag & Drop Input** — Drop files directly onto the text input area for instant extraction.
-- **Download Reports** — Export the completed analysis as a text report at any time.
-- **Graceful Degradation** — Each AI provider fails independently with a clear in-stream error message, so one unavailable engine never blocks the others.
+- **Real-Time Streaming** — Results appear live as the AI works through each question. No waiting for a wall of text at the end.
+- **Six Distinct Profiles** — From a quick cognitive snapshot to a full clinical-depth psychopathological report.
+- **File Upload** — Supports PDF, Microsoft Word, and plain text documents with automatic text extraction.
+- **Large Text Handling** — Oversized texts are automatically detected and broken into selectable segments so you stay in control of scope.
+- **Dialogue & Regeneration** — After any analysis, continue the conversation, raise concerns, or trigger a full regeneration with your feedback built in.
+- **Downloadable Reports** — Export the completed profile as a clean text report.
 
 ---
 
 ## 📋 Scoring Methodology
 
-Scores represent an **outperformance percentile** — a score of `72/100` means the author outperforms 72 out of 100 people in the reference population on that dimension. The system is calibrated to distinguish genuine intellectual output from pseudo-intellectual or performative text.
-
----
-
-## 🔑 Required Secrets
-
-Set these in the **Secrets** tab. At least one AI provider key is required for analysis to function.
-
-- `OPENAI_API_KEY` — Powers ZHI 1 (GPT). Required for OpenAI-based analysis.
-- `ANTHROPIC_API_KEY` — Powers ZHI 2 (Claude). Required for Anthropic-based analysis.
-- `DEEPSEEK_API_KEY` — Powers ZHI 3. Required for DeepSeek-based analysis.
-- `PERPLEXITY_API_KEY` — Powers ZHI 4. Required for Perplexity-based analysis.
-- `DATABASE_URL` — PostgreSQL connection string. Auto-provisioned by Replit.
-- `SESSION_SECRET` — Signed-session cookie secret. Auto-provisioned by Replit.
-
----
-
-## 🗄 Data & Storage
-
-- **Database** — PostgreSQL via [Neon](https://neon.tech) serverless, managed with [Drizzle ORM](https://orm.drizzle.team).
-- **Analysis History** — Every completed analysis is stored and retrievable by ID for the duration of the session.
-- **Dialogue History** — Full conversation threads are persisted per analysis session.
-- **No accounts required** — The app is fully functional without login. All analyses run anonymously.
-
----
-
-## 🏗 Architecture
-
-```
-client/            React + TypeScript (Vite)
-  pages/           home, not-found
-  components/      AnalysisSelector, InputSection, ControlPanel,
-                   RealTimeResults, DialogueSystem, ChunkSelector
-  hooks/           useAnalysis — streaming + dialogue state
-
-server/            Express + TypeScript
-  routes.ts        All API endpoints
-  storage.ts       IStorage interface + PostgreSQL implementation
-  services/
-    llmService.ts        ZHI 1–4 abstraction (stream + send)
-    analysisEngine.ts    Question sets, batch processing, SSE orchestration
-    fileProcessor.ts     PDF, Word, and text extraction + validation
-
-shared/
-  schema.ts        Drizzle schema + Zod types
-  textUtils.ts     TextChunkingService
-```
-
----
-
-## 🚀 Running Locally
-
-```bash
-# Install dependencies
-npm install
-
-# Push database schema
-npm run db:push
-
-# Start development server (http://localhost:5000)
-npm run dev
-```
-
-**Production build:**
-
-```bash
-npm run build      # Vite frontend + esbuild server bundle → dist/
-node dist/index.js # Start production server
-```
+Scores represent an **outperformance percentile** — a score of `72/100` means the author outperforms 72 out of 100 people in the reference population on that dimension. The system is calibrated to distinguish genuine intellectual output from pseudo-intellectual or performative text, and has been tested against a wide range of writing styles and domains.
 
 ---
 
@@ -136,4 +66,4 @@ node dist/index.js # Start production server
 
 ---
 
-> **Disclaimer:** Mind Reader is a passthrough profiling tool intended for professional assessment purposes. Outputs are AI-generated and should be interpreted by qualified practitioners. They do not constitute a clinical diagnosis.
+> **Disclaimer:** Mind Probe is a passthrough profiling tool intended for professional assessment purposes. Outputs are AI-generated and should be interpreted by qualified practitioners. They do not constitute a clinical diagnosis.
