@@ -184,12 +184,42 @@ export async function registerRoutes(app: Express): Promise<Server> {
         textContent += `Additional Context:\n${analysis.additionalContext}\n\n`;
       }
 
-      textContent += `Results:\n`;
+      // Deduplicate: keep only the last complete entry per questionId / summary
+      const finalResults: any[] = [];
       if (Array.isArray(analysis.results)) {
-        analysis.results.forEach((result: any, index: number) => {
-          textContent += `\n${index + 1}. ${result.data?.question || 'Result'}\n`;
-          textContent += `${result.data?.answer || result.data?.content || 'No content'}\n`;
-        });
+        const seen = new Map<string, any>();
+        for (const result of analysis.results) {
+          const key = result.type === 'summary'
+            ? '__summary__'
+            : (result.data?.questionId ?? result.type);
+          seen.set(key, result);
+        }
+        // Preserve insertion order (summary first, then questions)
+        for (const result of analysis.results) {
+          const key = result.type === 'summary'
+            ? '__summary__'
+            : (result.data?.questionId ?? result.type);
+          if (seen.get(key) === result && !finalResults.includes(result)) {
+            finalResults.push(result);
+          }
+        }
+      }
+
+      textContent += `Results:\n`;
+      let qNum = 0;
+      for (const result of finalResults) {
+        if (result.type === 'summary') {
+          textContent += `\n${'='.repeat(60)}\n`;
+          textContent += `TEXT SUMMARY & CATEGORIZATION\n`;
+          textContent += `${'='.repeat(60)}\n`;
+          textContent += `${result.data?.content || ''}\n`;
+        } else if (result.type === 'question') {
+          qNum++;
+          textContent += `\n${'─'.repeat(60)}\n`;
+          textContent += `Q${qNum}: ${result.data?.question || ''}\n`;
+          textContent += `${'─'.repeat(60)}\n`;
+          textContent += `${result.data?.answer || ''}\n`;
+        }
       }
 
       res.setHeader('Content-Type', 'text/plain');
