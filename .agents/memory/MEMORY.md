@@ -1,0 +1,2 @@
+- [Tractatus-Skeleton Architecture](tractatus-skeleton.md) — 3-pass coherence system for long-doc evaluation; Neon tables initialized on server start.
+- [LLM Model Fixes](llm-models.md) — gpt-4o-mini (128k) for ZHI 1; Anthropic model pinned to claude-3-5-sonnet-20241022 (sonnet-4 returns 404).

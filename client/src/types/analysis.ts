@@ -31,7 +31,7 @@ export interface AnalysisResult {
 }
 
 export interface StreamEvent {
-  type: 'summary' | 'question' | 'complete' | 'error';
+  type: 'skeleton' | 'summary' | 'question' | 'complete' | 'error';
   data: any;
 }
 

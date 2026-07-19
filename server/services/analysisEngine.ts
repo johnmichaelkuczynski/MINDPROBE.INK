@@ -1,16 +1,18 @@
 import { LLMService, LLMProvider } from './llmService';
+import * as tractatus from './tractatusMemory';
+import type { DocumentSkeleton } from './tractatusMemory';
 import fs from 'fs';
 import path from 'path';
 
-export type AnalysisType = 
+export type AnalysisType =
   | 'micro-cognitive'
-  | 'cognitive' 
-  | 'comprehensive-cognitive' 
+  | 'cognitive'
+  | 'comprehensive-cognitive'
   | 'micro-psychological'
-  | 'psychological' 
-  | 'comprehensive-psychological' 
+  | 'psychological'
+  | 'comprehensive-psychological'
   | 'micro-psychopathological'
-  | 'psychopathological' 
+  | 'psychopathological'
   | 'comprehensive-psychopathological';
 
 type Verbosity = 'micro' | 'normal' | 'comprehensive';
@@ -28,6 +30,21 @@ export interface AnalysisResponse {
   score?: number;
 }
 
+interface LedgerEntry {
+  questionId: string;
+  question: string;
+  score?: number;
+  keyFinding: string;
+}
+
+const ANTI_SYCOPHANCY_CLAUSES = `
+- Preserve every REJECTS entry verbatim. Do not soften, qualify, or convert a REJECTS into an OPEN.
+- Preserve every numerical value, date, proper name, citation, and quoted phrase exactly as it appears.
+- If two entries contradict, do not silently merge them.
+- Defeats, negative results, and counterexamples are load-bearing. Preserve them.
+- You are not being graded on smoothness, harmony, or readability.
+`.trim();
+
 export class AnalysisEngine {
   private llmService: LLMService;
   private completeInstructions: string;
@@ -35,14 +52,14 @@ export class AnalysisEngine {
   constructor() {
     this.llmService = new LLMService();
     this.completeInstructions = this.loadCompleteInstructions();
+    tractatus.initTractatusTables().catch(() => {});
   }
 
   private loadCompleteInstructions(): string {
     try {
-      const instructionsPath = path.join(process.cwd(), 'complete_instructions.txt');
-      return fs.readFileSync(instructionsPath, 'utf8');
-    } catch (error) {
-      console.error('Failed to load complete instructions:', error);
+      const p = path.join(process.cwd(), 'complete_instructions.txt');
+      return fs.readFileSync(p, 'utf8');
+    } catch {
       return '';
     }
   }
@@ -54,11 +71,123 @@ export class AnalysisEngine {
   }
 
   getQuestions(analysisType: AnalysisType): AnalysisQuestion[] {
-    // Check psychopathological BEFORE psychological — it contains 'psychological' as a substring
     if (analysisType.includes('psychopathological')) return this.getPsychopathologicalQuestions();
     if (analysisType.includes('psychological')) return this.getPsychologicalQuestions();
     if (analysisType.includes('cognitive')) return this.getCognitiveQuestions();
     throw new Error(`Unknown analysis type: ${analysisType}`);
+  }
+
+  private parseScore(answer: string): number | undefined {
+    const m = answer.match(/Score:\s*(\d+)\s*\/\s*100/i);
+    return m ? parseInt(m[1], 10) : undefined;
+  }
+
+  private extractKeyFinding(answer: string): string {
+    const lines = answer.split('\n').map(l => l.trim()).filter(l => l.length > 30);
+    return (lines[0] ?? answer).substring(0, 140);
+  }
+
+  private wordCount(text: string): number {
+    return text.trim().split(/\s+/).length;
+  }
+
+  private formatSkeletonBlock(skeleton: DocumentSkeleton | null): string {
+    if (!skeleton) return '';
+
+    const excerptNote = skeleton.isExcerpt
+      ? `\nIMPORTANT — DOCUMENT TYPE: ${skeleton.documentType}. This is a fragment: an introduction, abstract, or excerpt. It may assert a thesis without yet having executed the argument. EVALUATE IT AS AN INTRODUCTION: does it successfully frame a problem, signal intellectual architecture, and motivate an approach? Do NOT penalise it for arguments that will appear in later sections.`
+      : `\nDOCUMENT TYPE: ${skeleton.documentType}.`;
+
+    const outline = skeleton.outline.map((o, i) => `  ${i + 1}. ${o}`).join('\n');
+    const terms = skeleton.keyTerms.length
+      ? skeleton.keyTerms.map(kt => `  "${kt.term}": ${kt.definition}`).join('\n')
+      : '  (none identified)';
+    const asserts = skeleton.asserts.length
+      ? skeleton.asserts.map(a => `  + ${a}`).join('\n')
+      : '  (none)';
+    const rejects = skeleton.rejects.length
+      ? skeleton.rejects.map(r => `  - ${r}`).join('\n')
+      : '  (none)';
+    const assumes = skeleton.assumes.length
+      ? skeleton.assumes.map(a => `  ~ ${a}`).join('\n')
+      : '  (none)';
+
+    return `╔══ DOCUMENT SKELETON (read before answering — this is what the document is doing) ══╗
+THESIS: ${skeleton.thesis}
+${excerptNote}
+
+ARGUMENT OUTLINE:
+${outline}
+
+KEY TERMS (as used in this document):
+${terms}
+
+WHAT THIS DOCUMENT ASSERTS:
+${asserts}
+
+WHAT THIS DOCUMENT EXPLICITLY REJECTS:
+${rejects}
+
+LOAD-BEARING ASSUMPTIONS:
+${assumes}
+╚════════════════════════════════════════════════════════════════════════════════════╝`;
+  }
+
+  private formatLedgerBlock(ledger: LedgerEntry[]): string {
+    if (ledger.length === 0) return '';
+    const recent = ledger.slice(-10);
+    const lines = recent.map(e =>
+      `  [${e.questionId}] "${e.question.substring(0, 70)}…" → ${e.score != null ? `${e.score}/100` : 'unscored'} | ${e.keyFinding.substring(0, 100)}`
+    ).join('\n');
+    return `╔══ PRIOR QUESTION FINDINGS (maintain consistency — do not contradict these) ══╗
+${lines}
+╚═══════════════════════════════════════════════════════════════════════════════╝`;
+  }
+
+  private async extractSkeleton(
+    text: string,
+    provider: LLMProvider
+  ): Promise<DocumentSkeleton | null> {
+    const wc = this.wordCount(text);
+    const textForExtraction = wc > 15000
+      ? text.split(/\s+/).slice(0, 15000).join(' ') + '\n[... document continues beyond skeleton sample ...]'
+      : text;
+
+    const prompt = `You are extracting a structural skeleton from a document that will be evaluated by a cognitive/psychological profiling system. The skeleton will be injected into every evaluation question so the LLM evaluator knows what the document is actually trying to do — not just what it says in any individual chunk.
+
+DOCUMENT (${wc} words):
+${textForExtraction}
+
+Return ONLY valid JSON — no markdown, no code fences, no preamble, no postamble:
+{
+  "thesis": "Central argument or purpose in 1-3 sentences",
+  "outline": ["8-20 key structural steps, claims, or section purposes — cover the whole arc"],
+  "keyTerms": [{"term": "important term", "definition": "its meaning as used in this document"}],
+  "asserts": ["3-8 positive claims the document makes"],
+  "rejects": ["2-5 positions or views the document argues against — CRITICAL, do not omit"],
+  "assumes": ["2-4 load-bearing assumptions the argument depends on"],
+  "entities": ["authors, theories, named concepts that must stay consistent across evaluation"],
+  "documentType": "one of: Complete Essay, Introduction, Abstract, Book Chapter, Excerpt, Short Piece, Academic Article, Opinion Piece, Philosophical Essay",
+  "isExcerpt": false
+}
+
+Set isExcerpt to true if the document is clearly a fragment: an introduction that promises to argue X but has not yet, an abstract, a piece referencing Part II or Chapter 3 as forthcoming, etc.
+
+${ANTI_SYCOPHANCY_CLAUSES}`;
+
+    let raw = '';
+    try {
+      for await (const chunk of this.llmService.streamMessage(provider, prompt)) {
+        raw += chunk;
+      }
+      const s = raw.indexOf('{');
+      const e = raw.lastIndexOf('}');
+      if (s === -1 || e === -1) throw new Error('No JSON object found in skeleton response');
+      return JSON.parse(raw.substring(s, e + 1)) as DocumentSkeleton;
+    } catch (err) {
+      console.error('[Skeleton] Extraction failed:', err);
+      return null;
+    }
   }
 
   async *processAnalysis(
@@ -66,44 +195,83 @@ export class AnalysisEngine {
     text: string,
     additionalContext: string | undefined,
     provider: LLMProvider
-  ): AsyncGenerator<{ type: 'summary' | 'question'; data: any }> {
+  ): AsyncGenerator<{ type: 'skeleton' | 'summary' | 'question'; data: any }> {
     const verbosity = this.getVerbosity(analysisType);
+    const wc = this.wordCount(text);
 
-    yield* this.generateSummary(text, provider, verbosity);
+    yield { type: 'skeleton', data: { status: 'extracting', message: 'Extracting document skeleton for cross-chunk coherence…' } };
+
+    const skeleton = await this.extractSkeleton(text, provider);
+
+    if (skeleton) {
+      yield { type: 'skeleton', data: { status: 'complete', skeleton, message: `Skeleton extracted: ${skeleton.documentType}${skeleton.isExcerpt ? ' (excerpt)' : ''}` } };
+    } else {
+      yield { type: 'skeleton', data: { status: 'failed', message: 'Skeleton extraction failed — proceeding without global context' } };
+    }
+
+    let jobId = 'memory-only';
+    if (skeleton) {
+      jobId = await tractatus.createAnalysisJob({
+        wordCount: wc,
+        analysisType,
+        provider,
+        skeleton,
+      });
+      await tractatus.skeletonToTier0(jobId, skeleton);
+    }
+
+    yield* this.generateSummary(text, provider, verbosity, skeleton);
 
     const questions = this.getQuestions(analysisType);
-    
+    const ledger: LedgerEntry[] = [];
     const batchSize = 5;
+
     for (let i = 0; i < questions.length; i += batchSize) {
       const batch = questions.slice(i, i + batchSize);
-      
+
       for (const question of batch) {
-        yield* this.processQuestion(question, text, additionalContext, provider, verbosity);
+        let finalAnswer = '';
+        for await (const event of this.processQuestion(question, text, additionalContext, provider, verbosity, skeleton, ledger, jobId)) {
+          finalAnswer = event.data.answer;
+          yield event;
+        }
+
+        const score = this.parseScore(finalAnswer);
+        const keyFinding = this.extractKeyFinding(finalAnswer);
+        ledger.push({ questionId: question.id, question: question.question, score, keyFinding });
+        await tractatus.updateLiveTier(jobId, { questionId: question.id, question: question.question, score, keyFinding });
       }
-      
+
       if (i + batchSize < questions.length) {
         await this.delay(10000);
       }
     }
 
     if (verbosity === 'comprehensive') {
-      yield* this.processComprehensivePhases(analysisType, text, provider);
+      yield* this.processComprehensivePhases(analysisType, text, provider, skeleton, ledger);
     }
+
+    await tractatus.completeAnalysisJob(jobId);
   }
 
   private async *generateSummary(
     text: string,
     provider: LLMProvider,
-    verbosity: Verbosity
+    verbosity: Verbosity,
+    skeleton: DocumentSkeleton | null
   ): AsyncGenerator<{ type: 'summary'; data: any }> {
     const lengthInstruction = verbosity === 'micro'
       ? 'Be extremely brief — one short sentence per field.'
       : verbosity === 'comprehensive'
-      ? 'Be thorough and detailed in your summary.'
-      : 'Be concise but informative.';
+        ? 'Be thorough and detailed in your summary.'
+        : 'Be concise but informative.';
+
+    const skeletonHint = skeleton
+      ? `\nDocument type identified: ${skeleton.documentType}. Thesis: ${skeleton.thesis.substring(0, 200)}\n`
+      : '';
 
     const prompt = `${this.completeInstructions}
-
+${skeletonHint}
 TASK: Summarize the following text and categorize it. Provide:
 1. Category (e.g., Academic Essay, Personal Writing, Technical Document, etc.)
 2. Summary (2-3 sentences)
@@ -127,25 +295,39 @@ Text: ${text}`;
     text: string,
     additionalContext: string | undefined,
     provider: LLMProvider,
-    verbosity: Verbosity
+    verbosity: Verbosity,
+    skeleton: DocumentSkeleton | null,
+    ledger: LedgerEntry[],
+    jobId: string
   ): AsyncGenerator<{ type: 'question'; data: any }> {
     const contextPrompt = additionalContext ? `Additional context: ${additionalContext}\n\n` : '';
 
     const lengthInstruction = verbosity === 'micro'
-      ? `RESPONSE LENGTH: One sentence — two at the absolute most. State your verdict and the score. Nothing else. No setup, no hedging, no padding.`
+      ? `RESPONSE LENGTH: One sentence — two at the absolute most. State your verdict and the score. Nothing else.`
       : verbosity === 'comprehensive'
-      ? `RESPONSE LENGTH: Write two or more full paragraphs. You must include at least one direct illustrative quote from the text in each paragraph. Explore every dimension of the question thoroughly. Do not truncate.`
-      : `RESPONSE LENGTH: One focused paragraph. Include at least one direct illustrative quote from the text to support your assessment. No more, no less.`;
+        ? `RESPONSE LENGTH: Write two or more full paragraphs. Include at least one direct illustrative quote from the text in each paragraph. Explore every dimension of the question thoroughly. Do not truncate.`
+        : `RESPONSE LENGTH: One focused paragraph. Include at least one direct illustrative quote from the text to support your assessment.`;
+
+    const skeletonBlock = this.formatSkeletonBlock(skeleton);
+    const ledgerBlock = this.formatLedgerBlock(ledger);
+
+    const dbContext = jobId !== 'memory-only'
+      ? await tractatus.buildTieredPromptContext(jobId)
+      : '';
+
+    const contextSection = [skeletonBlock, ledgerBlock, dbContext]
+      .filter(s => s.trim().length > 0)
+      .join('\n\n');
 
     const prompt = `${this.completeInstructions}
 
-${contextPrompt}Answer this question in connection with this text: ${question.question}
+${contextSection ? contextSection + '\n\n' : ''}${contextPrompt}Answer this question in connection with this text: ${question.question}
 
 Text: ${text}
 
-ANSWER THESE QUESTIONS IN CONNECTION WITH THIS TEXT. 
+ANSWER THIS QUESTION IN CONNECTION WITH THIS TEXT.
 
-A score of N/100 (e.g. 73/100) means that (100-N)/100 (e.g. 27/100) outperform the author with respect to the parameter defined by the question. 
+A score of N/100 (e.g. 73/100) means that the author outperforms N% of writers with respect to the parameter defined by the question.
 
 You are not grading; you are answering these questions. You do not use a risk-averse standard; you do not attempt to be diplomatic; you do not attempt to comply with risk-averse, medium-range IQ, academic norms. You do not make assumptions about the level of the paper; it could be a work of the highest excellence and genius, or it could be the work of a moron.
 
@@ -183,14 +365,16 @@ Score: XX/100`;
   private async *processComprehensivePhases(
     analysisType: AnalysisType,
     text: string,
-    provider: LLMProvider
+    provider: LLMProvider,
+    skeleton: DocumentSkeleton | null,
+    ledger: LedgerEntry[]
   ): AsyncGenerator<{ type: 'question'; data: any }> {
     yield {
       type: 'question',
       data: {
         questionId: 'phase2',
         question: 'Comprehensive Analysis — Phase 2 (Pushback Protocol)',
-        answer: 'Reviewing scores and challenging evaluations below 95/100...',
+        answer: 'Reviewing scores and challenging evaluations below 95/100…',
         complete: true
       }
     };

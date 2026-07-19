@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Maximize2, Loader2, Download } from "lucide-react";
+import { Maximize2, Loader2, Download, Brain, CheckCircle2, AlertCircle } from "lucide-react";
 import { useSSE } from "@/hooks/useSSE";
 import { StreamEvent } from "@/types/analysis";
 
@@ -18,17 +18,39 @@ interface ProcessedResult {
   complete: boolean;
 }
 
+interface SkeletonStatus {
+  phase: 'idle' | 'extracting' | 'complete' | 'failed';
+  message: string;
+  documentType?: string;
+  isExcerpt?: boolean;
+}
+
 export function RealTimeResults({ analysisId, isStreaming }: RealTimeResultsProps) {
   const [results, setResults] = useState<ProcessedResult[]>([]);
   const [streamingStatus, setStreamingStatus] = useState("Ready");
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [skeletonStatus, setSkeletonStatus] = useState<SkeletonStatus>({ phase: 'idle', message: '' });
 
   const streamUrl = analysisId ? `/api/analysis/${analysisId}/stream` : null;
   
   const { data: streamData, isConnected, error } = useSSE<StreamEvent>(streamUrl, (event) => {
     console.log('RealTimeResults received event:', event);
     
-    if (event.type === 'summary') {
+    if (event.type === 'skeleton') {
+      const d = event.data as any;
+      if (d.status === 'extracting') {
+        setSkeletonStatus({ phase: 'extracting', message: d.message });
+      } else if (d.status === 'complete') {
+        setSkeletonStatus({
+          phase: 'complete',
+          message: d.message,
+          documentType: d.skeleton?.documentType,
+          isExcerpt: d.skeleton?.isExcerpt,
+        });
+      } else if (d.status === 'failed') {
+        setSkeletonStatus({ phase: 'failed', message: d.message });
+      }
+    } else if (event.type === 'summary') {
       console.log('Processing summary event:', event.data);
       setResults(prev => {
         const existingSummaryIndex = prev.findIndex(r => r.type === 'summary');
@@ -92,6 +114,7 @@ export function RealTimeResults({ analysisId, isStreaming }: RealTimeResultsProp
     if (!analysisId) {
       setResults([]);
       setStreamingStatus("Ready");
+      setSkeletonStatus({ phase: 'idle', message: '' });
     }
   }, [analysisId]);
 
@@ -135,23 +158,21 @@ export function RealTimeResults({ analysisId, isStreaming }: RealTimeResultsProp
   };
 
   const formatContent = (content: string) => {
-    // Clean up all markdown-style formatting and extract scores
     const cleanContent = content
-      .replace(/\*\*([^*]+)\*\*/g, '$1') // Remove **bold**
-      .replace(/\*([^*]+)\*/g, '$1')     // Remove *italic*
-      .replace(/#+\s*/g, '')            // Remove ### headers
-      .replace(/```([^`]*)```/g, '$1')  // Remove ```code blocks```
-      .replace(/`([^`]+)`/g, '$1')      // Remove `inline code`
-      .replace(/^\s*[\-\*\+]\s+/gm, '') // Remove bullet points
-      .replace(/^\s*\d+\.\s+/gm, '')    // Remove numbered lists
-      .replace(/__([^_]+)__/g, '$1')    // Remove __underline__
-      .replace(/~~([^~]+)~~/g, '$1')    // Remove ~~strikethrough~~
+      .replace(/\*\*([^*]+)\*\*/g, '$1')
+      .replace(/\*([^*]+)\*/g, '$1')
+      .replace(/#+\s*/g, '')
+      .replace(/```([^`]*)```/g, '$1')
+      .replace(/`([^`]+)`/g, '$1')
+      .replace(/^\s*[\-\*\+]\s+/gm, '')
+      .replace(/^\s*\d+\.\s+/gm, '')
+      .replace(/__([^_]+)__/g, '$1')
+      .replace(/~~([^~]+)~~/g, '$1')
       .trim();
 
     return cleanContent
       .split('\n')
       .map((line, index) => {
-        // Extract and highlight scores (like 25/100, 94/100, etc.)
         const scoreMatch = line.match(/(\d+\/100)/);
         if (scoreMatch) {
           const score = parseInt(scoreMatch[1].split('/')[0]);
@@ -168,7 +189,6 @@ export function RealTimeResults({ analysisId, isStreaming }: RealTimeResultsProp
             </div>
           );
         }
-        // Handle quotations
         else if (line.startsWith('"') && line.endsWith('"')) {
           return (
             <blockquote key={index} className="border-l-4 border-gray-300 pl-4 my-3 italic text-gray-600">
@@ -176,15 +196,52 @@ export function RealTimeResults({ analysisId, isStreaming }: RealTimeResultsProp
             </blockquote>
           );
         }
-        // Regular paragraphs
         else if (line.trim()) {
           return <p key={index} className="text-gray-700 mb-2 leading-relaxed">{line}</p>;
         }
-        // Empty lines
         else {
           return <div key={index} className="mb-2"></div>;
         }
       });
+  };
+
+  const renderSkeletonBanner = () => {
+    if (skeletonStatus.phase === 'idle') return null;
+
+    if (skeletonStatus.phase === 'extracting') {
+      return (
+        <div className="flex items-center gap-3 px-4 py-3 mb-4 rounded-lg bg-indigo-50 border border-indigo-200 text-indigo-800">
+          <Brain className="h-4 w-4 text-indigo-500 shrink-0" />
+          <Loader2 className="h-4 w-4 animate-spin text-indigo-500 shrink-0" />
+          <span className="text-sm font-medium">Pass 1 — Extracting document skeleton for cross-chunk coherence…</span>
+        </div>
+      );
+    }
+
+    if (skeletonStatus.phase === 'complete') {
+      return (
+        <div className="flex items-center gap-3 px-4 py-3 mb-4 rounded-lg bg-green-50 border border-green-200 text-green-800">
+          <Brain className="h-4 w-4 text-green-600 shrink-0" />
+          <CheckCircle2 className="h-4 w-4 text-green-600 shrink-0" />
+          <span className="text-sm font-medium">
+            Skeleton extracted — {skeletonStatus.documentType}
+            {skeletonStatus.isExcerpt ? ' (excerpt — evaluating as introduction)' : ''}
+            . All questions will now be calibrated against the document's full intent.
+          </span>
+        </div>
+      );
+    }
+
+    if (skeletonStatus.phase === 'failed') {
+      return (
+        <div className="flex items-center gap-3 px-4 py-3 mb-4 rounded-lg bg-amber-50 border border-amber-200 text-amber-800">
+          <AlertCircle className="h-4 w-4 text-amber-600 shrink-0" />
+          <span className="text-sm">Skeleton extraction failed — proceeding without global context</span>
+        </div>
+      );
+    }
+
+    return null;
   };
 
   return (
@@ -224,7 +281,9 @@ export function RealTimeResults({ analysisId, isStreaming }: RealTimeResultsProp
       <CardContent className="p-6">
         <div className={`space-y-6 ${isFullscreen ? 'max-h-[calc(100vh-200px)] overflow-y-auto' : 'min-h-96'}`}>
           
-          {results.length === 0 && !isStreaming && (
+          {renderSkeletonBanner()}
+
+          {results.length === 0 && !isStreaming && skeletonStatus.phase === 'idle' && (
             <div className="text-center py-12 text-gray-500">
               <p>No analysis results yet. Start an analysis to see real-time results here.</p>
             </div>
