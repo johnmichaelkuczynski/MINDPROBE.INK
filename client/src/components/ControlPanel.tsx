@@ -26,6 +26,7 @@ const llmOptions = [
   { id: 'zhi2' as LLMProvider, name: 'ZHI 2', description: 'Alternative reasoning model' },
   { id: 'zhi3' as LLMProvider, name: 'ZHI 3', description: 'Specialized profiling engine' },
   { id: 'zhi4' as LLMProvider, name: 'ZHI 4', description: 'Research-focused model' },
+  { id: 'zhi5' as LLMProvider, name: 'ZHI 5', description: 'Use for adult content' },
 ];
 
 export function ControlPanel({

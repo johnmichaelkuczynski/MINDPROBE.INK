@@ -15,7 +15,7 @@ const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
 const DEFAULT_OPENAI_MODEL = "gpt-3.5-turbo";
 // </important_do_not_delete>
 
-export type LLMProvider = "zhi1" | "zhi2" | "zhi3" | "zhi4";
+export type LLMProvider = "zhi1" | "zhi2" | "zhi3" | "zhi4" | "zhi5";
 
 export interface LLMResponse {
   content: string;
@@ -50,6 +50,8 @@ export class LLMService {
         return this.sendDeepSeekMessage(message, systemPrompt);
       case "zhi4": // Perplexity
         return this.sendPerplexityMessage(message, systemPrompt);
+      case "zhi5": // Venice
+        return this.sendVeniceMessage(message, systemPrompt);
       default:
         throw new Error(`Unknown LLM provider: ${provider}`);
     }
@@ -72,6 +74,9 @@ export class LLMService {
         break;
       case "zhi4": // Perplexity
         yield* this.streamPerplexityMessage(message, systemPrompt);
+        break;
+      case "zhi5": // Venice
+        yield* this.streamVeniceMessage(message, systemPrompt);
         break;
       default:
         throw new Error(`Unknown LLM provider: ${provider}`);
@@ -253,6 +258,94 @@ export class LLMService {
           // Skip invalid JSON
         }
       }
+    }
+  }
+
+  private async sendVeniceMessage(message: string, systemPrompt?: string): Promise<LLMResponse> {
+    const messages: any[] = [];
+    if (systemPrompt) messages.push({ role: "system", content: systemPrompt });
+    messages.push({ role: "user", content: message });
+
+    const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.VENICE_API_KEY}`,
+      },
+      body: JSON.stringify({ model: 'llama-3.3-70b', messages }),
+    });
+
+    const data = await response.json();
+    return { content: data.choices[0].message.content || "", provider: "zhi5" };
+  }
+
+  private async *streamVeniceMessage(message: string, systemPrompt?: string): AsyncGenerator<string> {
+    try {
+      const messages: any[] = [];
+      if (systemPrompt) messages.push({ role: "system", content: systemPrompt });
+      messages.push({ role: "user", content: message });
+
+      console.log(`[Venice] Starting stream for message length: ${message.length}`);
+
+      const response = await fetch('https://api.venice.ai/api/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${process.env.VENICE_API_KEY}`,
+        },
+        body: JSON.stringify({
+          model: 'llama-3.3-70b',
+          messages,
+          stream: true,
+          max_tokens: 2000,
+          temperature: 0.7,
+        }),
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`[Venice] HTTP Error ${response.status}:`, errorText);
+        yield `Error: Venice API returned ${response.status} - ${errorText}. Please try a different LLM provider.`;
+        return;
+      }
+
+      const reader = response.body?.getReader();
+      if (!reader) {
+        yield "Error: Failed to read Venice response stream.";
+        return;
+      }
+
+      const decoder = new TextDecoder();
+      let totalContent = '';
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        const chunk = decoder.decode(value);
+        const lines = chunk.split('\n').filter(line => line.trim().startsWith('data: '));
+
+        for (const line of lines) {
+          const data = line.replace('data: ', '');
+          if (data === '[DONE]') {
+            console.log(`[Venice] Stream completed. Total content length: ${totalContent.length}`);
+            return;
+          }
+          try {
+            const parsed = JSON.parse(data);
+            const content = parsed.choices[0]?.delta?.content;
+            if (content) { totalContent += content; yield content; }
+          } catch (e) { /* skip invalid JSON */ }
+        }
+      }
+
+      if (totalContent.length === 0) {
+        yield "Error: No response received from Venice. Please try a different LLM provider.";
+      }
+    } catch (error) {
+      console.error('[Venice] Stream error:', error);
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      yield `Error: Venice API failed - ${errorMessage}. Please try a different LLM provider.`;
     }
   }
 

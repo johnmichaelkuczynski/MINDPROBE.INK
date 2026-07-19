@@ -9,7 +9,7 @@ export type AnalysisType =
   | 'psychopathological' 
   | 'comprehensive-psychopathological';
 
-export type LLMProvider = "zhi1" | "zhi2" | "zhi3" | "zhi4";
+export type LLMProvider = "zhi1" | "zhi2" | "zhi3" | "zhi4" | "zhi5";
 
 export interface AnalysisConfig {
   analysisType: AnalysisType;
