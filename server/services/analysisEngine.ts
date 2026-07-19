@@ -155,6 +155,11 @@ You think very very very hard about your answers; make it very clear that you ar
 
 DO NOT GIVE CREDIT MERELY FOR USE OF JARGON OR FOR REFERENCING AUTHORITIES. FOCUS ON SUBSTANCE. ONLY GIVE POINTS FOR SCHOLARLY REFERENCES/JARGON IF THEY UNAMBIGUOUSLY INCREASE SUBSTANCE.
 
+CRITICAL SCORING DIRECTION — SCORES ALWAYS MEASURE QUALITY, NOT THE PRESENCE OF A FLAW:
+- If a question asks about a NEGATIVE trait (e.g. "does it use jargon to OBFUSCATE?", "are the points clichéd?", "is it forced and artificial?"), then DETECTING that negative trait means the text is BAD on that dimension → score LOW (e.g. 5–25/100).
+- If a question asks about a POSITIVE trait (e.g. "is it insightful?", "does it use jargon for PRECISION?"), then detecting that positive trait means the text is GOOD → score HIGH.
+- NEVER reward a text for having a flaw. Jargoneering — using jargon to obfuscate rather than clarify — is a serious intellectual defect. A text that jargonizes to obscure meaning deserves a score near 0/100 on that question, not 90/100. A high score for the jargon question is ONLY appropriate when the jargon demonstrably sharpens precision and adds substance.
+
 Use NO formatting markup whatsoever - no **, *, ##, +++, ---, ***, ###, etc. Write in plain text only.
 
 ${lengthInstruction}
