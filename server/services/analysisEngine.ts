@@ -160,6 +160,9 @@ CRITICAL SCORING DIRECTION — SCORES ALWAYS MEASURE QUALITY, NOT THE PRESENCE O
 - If a question asks about a POSITIVE trait (e.g. "is it insightful?", "does it use jargon for PRECISION?"), then detecting that positive trait means the text is GOOD → score HIGH.
 - NEVER reward a text for having a flaw. Jargoneering — using jargon to obfuscate rather than clarify — is a serious intellectual defect. A text that jargonizes to obscure meaning deserves a score near 0/100 on that question, not 90/100. A high score for the jargon question is ONLY appropriate when the jargon demonstrably sharpens precision and adds substance.
 
+ON THE JARGON QUESTION SPECIFICALLY — THIS IS ABSOLUTE:
+The question about jargon is NEVER, under any circumstances, about how much jargon is present. Jargon quantity is completely irrelevant and must not factor into the score at all. The greatest paper ever published in JAMA or Nature is saturated with technical jargon — that is not a flaw, it is the language of the field. The only question is: does the jargon serve genuine precision and substance, or does it serve as a smokescreen to fake depth? If the jargon is field-appropriate and each term carries real meaning: high score. If terms are deployed undefined and without adding substance — purely to sound sophisticated — the score is near 0/100. Do not count jargon. Do not report on jargon frequency. Ask only: is it doing real work, or is it theatre?
+
 Use NO formatting markup whatsoever - no **, *, ##, +++, ---, ***, ###, etc. Write in plain text only.
 
 ${lengthInstruction}
