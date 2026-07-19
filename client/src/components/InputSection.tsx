@@ -4,6 +4,8 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Trash2, Clipboard, Upload, X, File } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useDictation } from "@/hooks/useDictation";
+import { DictateButton } from "@/components/DictateButton";
 
 interface InputSectionProps {
   inputText: string;
@@ -26,6 +28,14 @@ export function InputSection({
   const [isDragging, setIsDragging] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const { toast } = useToast();
+
+  const mainDictation = useDictation({
+    onTranscript: (text) => onTextChange(inputText + text),
+  });
+
+  const contextDictation = useDictation({
+    onTranscript: (text) => onContextChange(additionalContext + text),
+  });
 
   const characterCount = inputText.length;
   const wordCount = inputText.trim().split(/\s+/).filter(word => word.length > 0).length;
@@ -95,7 +105,6 @@ export function InputSection({
     if (files.length > 0) {
       const file = files[0];
       
-      // Check file type
       const allowedTypes = ['.pdf', '.docx', '.txt'];
       const fileExtension = '.' + file.name.split('.').pop()?.toLowerCase();
       
@@ -125,7 +134,12 @@ export function InputSection({
         <CardContent className="p-6">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold">Text Input</h3>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-1">
+              <DictateButton
+                state={mainDictation.state}
+                onStart={mainDictation.start}
+                onStop={mainDictation.stop}
+              />
               <Button
                 variant="ghost"
                 size="sm"
@@ -159,11 +173,17 @@ export function InputSection({
               placeholder="Enter or paste your text here for analysis. You can also drag and drop files directly onto this text area..."
               className={`min-h-80 resize-none focus:ring-2 focus:ring-primary-blue focus:border-transparent transition-colors ${
                 isDragging ? 'bg-blue-50 border-primary-blue border-2 border-dashed' : ''
-              }`}
+              } ${mainDictation.state === 'recording' ? 'border-red-300 ring-1 ring-red-200' : ''}`}
               data-testid="input-text"
             />
             
-            {/* Drag overlay */}
+            {mainDictation.state === 'recording' && (
+              <div className="absolute bottom-3 right-3 flex items-center space-x-1 bg-red-50 border border-red-200 rounded-full px-2 py-1">
+                <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                <span className="text-xs text-red-600 font-medium">Listening…</span>
+              </div>
+            )}
+
             {isDragging && (
               <div className="absolute inset-0 flex items-center justify-center bg-blue-50 bg-opacity-90 border-2 border-dashed border-primary-blue rounded-md pointer-events-none">
                 <div className="text-center">
@@ -247,14 +267,29 @@ export function InputSection({
       {/* Additional Context */}
       <Card className="border-border-light shadow-sm">
         <CardContent className="p-6">
-          <h3 className="text-lg font-semibold mb-4">Additional Context (Optional)</h3>
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-lg font-semibold">Additional Context <span className="text-gray-400 font-normal text-sm">(Optional)</span></h3>
+            <DictateButton
+              state={contextDictation.state}
+              onStart={contextDictation.start}
+              onStop={contextDictation.stop}
+            />
+          </div>
           <Textarea
             value={additionalContext}
             onChange={(e) => onContextChange(e.target.value)}
             placeholder="Add any relevant information that might influence the analysis..."
-            className="min-h-32 resize-none focus:ring-2 focus:ring-primary-blue focus:border-transparent"
+            className={`min-h-32 resize-none focus:ring-2 focus:ring-primary-blue focus:border-transparent ${
+              contextDictation.state === 'recording' ? 'border-red-300 ring-1 ring-red-200' : ''
+            }`}
             data-testid="input-additional-context"
           />
+          {contextDictation.state === 'recording' && (
+            <p className="mt-2 text-xs text-red-500 flex items-center space-x-1">
+              <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse inline-block" />
+              <span>Listening…</span>
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>

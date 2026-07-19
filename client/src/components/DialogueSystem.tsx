@@ -5,6 +5,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Send, RotateCcw, User, Brain } from "lucide-react";
 import { DialogueMessage } from "@/types/analysis";
+import { useDictation } from "@/hooks/useDictation";
+import { DictateButton } from "@/components/DictateButton";
 
 interface DialogueSystemProps {
   analysisId: string | null;
@@ -22,6 +24,10 @@ export function DialogueSystem({
   isSending
 }: DialogueSystemProps) {
   const [input, setInput] = useState("");
+
+  const dictation = useDictation({
+    onTranscript: (text) => setInput((prev) => prev + text),
+  });
 
   const handleSend = () => {
     if (input.trim() && analysisId) {
@@ -99,20 +105,31 @@ export function DialogueSystem({
         </ScrollArea>
         
         <div className="flex space-x-3">
-          <Textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Express your concerns about the analysis or ask questions..."
-            className="flex-1 resize-none focus:ring-2 focus:ring-primary-blue focus:border-transparent"
-            rows={3}
-            data-testid="input-dialogue"
-            onKeyDown={(e) => {
-              if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                handleSend();
-              }
-            }}
-          />
+          <div className="flex-1 relative">
+            <Textarea
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Express your concerns about the analysis or ask questions..."
+              className={`resize-none focus:ring-2 focus:ring-primary-blue focus:border-transparent pr-10 ${
+                dictation.state === 'recording' ? 'border-red-300 ring-1 ring-red-200' : ''
+              }`}
+              rows={3}
+              data-testid="input-dialogue"
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                  e.preventDefault();
+                  handleSend();
+                }
+              }}
+            />
+            <div className="absolute bottom-2 right-2">
+              <DictateButton
+                state={dictation.state}
+                onStart={dictation.start}
+                onStop={dictation.stop}
+              />
+            </div>
+          </div>
           <div className="flex flex-col space-y-2">
             <Button
               onClick={handleSend}
@@ -133,6 +150,12 @@ export function DialogueSystem({
             </Button>
           </div>
         </div>
+        {dictation.state === 'recording' && (
+          <p className="mt-2 text-xs text-red-500 flex items-center space-x-1">
+            <span className="w-1.5 h-1.5 bg-red-500 rounded-full animate-pulse inline-block" />
+            <span>Listening… click the mic to stop</span>
+          </p>
+        )}
       </CardContent>
     </Card>
   );

@@ -21,6 +21,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   const llmService = new LLMService();
   const analysisEngine = new AnalysisEngine();
 
+  // AssemblyAI temporary token for real-time transcription
+  app.post("/api/assemblyai/token", async (_req, res) => {
+    try {
+      if (!process.env.ASSEMBLYAI_API_KEY) {
+        return res.status(503).json({ error: "Voice dictation not configured" });
+      }
+      const { AssemblyAI } = await import("assemblyai");
+      const client = new AssemblyAI({ apiKey: process.env.ASSEMBLYAI_API_KEY });
+      const { token } = await client.realtime.createTemporaryToken({ expires_in: 480 });
+      res.json({ token });
+    } catch (error) {
+      console.error("AssemblyAI token error:", error);
+      res.status(500).json({ error: "Failed to create dictation token" });
+    }
+  });
+
   // File upload endpoint
   app.post("/api/upload", upload.single('file'), async (req: any, res) => {
     try {
