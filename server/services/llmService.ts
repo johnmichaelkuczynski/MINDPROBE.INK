@@ -10,7 +10,7 @@ When copying code from this code snippet, ensure you also include this informati
 */
 
 // <important_do_not_delete>
-const DEFAULT_ANTHROPIC_MODEL = "claude-sonnet-4-20250514";
+const DEFAULT_ANTHROPIC_MODEL = "claude-3-5-sonnet-20241022"; // claude-sonnet-4-20250514 returns 404 on this account
 // Using gpt-4o-mini for 128k context window (gpt-3.5-turbo only has 16k, too small for full instructions)
 const DEFAULT_OPENAI_MODEL = "gpt-4o-mini";
 // </important_do_not_delete>
