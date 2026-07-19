@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { neonConfig } from "@neondatabase/serverless";
 import ws from "ws";
+import fs from "fs";
+import path from "path";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 
@@ -61,13 +63,13 @@ app.use((req, res, next) => {
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
+  // Use the pre-built static frontend if it exists (production).
+  // Fall back to Vite dev server only when there is no build (development).
+  const builtFrontend = path.resolve(import.meta.dirname, "public", "index.html");
+  if (fs.existsSync(builtFrontend)) {
     serveStatic(app);
+  } else {
+    await setupVite(app, server);
   }
 
   // ALWAYS serve the app on the port specified in the environment variable PORT
