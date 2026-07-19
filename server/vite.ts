@@ -33,7 +33,8 @@ export async function setupVite(app: Express, server: Server) {
       ...viteLogger,
       error: (msg, options) => {
         viteLogger.error(msg, options);
-        process.exit(1);
+        // Never call process.exit here — a Vite pre-transform error on a
+        // stale browser request must not bring down the server.
       },
     },
     server: serverOptions,
