@@ -1,0 +1,11 @@
+This is a comprehensive test document for the Mind Reader application.
+
+The application provides cognitive, psychological, and psychopathological analysis through advanced AI models.
+
+Key features include:
+- Real-time streaming analysis
+- Multiple LLM provider support
+- Document upload functionality
+- Interactive dialogue system
+
+This text should be properly extracted and processed by the file upload system.
