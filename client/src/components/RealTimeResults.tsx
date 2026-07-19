@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Maximize2, Loader2 } from "lucide-react";
+import { Maximize2, Loader2, Download } from "lucide-react";
 import { useSSE } from "@/hooks/useSSE";
 import { StreamEvent } from "@/types/analysis";
 
@@ -95,6 +95,36 @@ export function RealTimeResults({ analysisId, isStreaming }: RealTimeResultsProp
     }
   }, [analysisId]);
 
+  const handleDownload = () => {
+    const lines: string[] = [];
+    lines.push("MIND PROBE — ANALYSIS REPORT");
+    lines.push("=".repeat(60));
+    lines.push(`Generated: ${new Date().toLocaleString()}`);
+    lines.push("");
+
+    results.forEach((result) => {
+      if (result.type === 'summary') {
+        lines.push("TEXT SUMMARY & CATEGORIZATION");
+        lines.push("-".repeat(40));
+        lines.push(result.content.trim());
+        lines.push("");
+      } else {
+        lines.push(`Q: ${result.question || ''}`);
+        lines.push("-".repeat(40));
+        lines.push(result.content.trim());
+        lines.push("");
+      }
+    });
+
+    const blob = new Blob([lines.join("\n")], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `mind-probe-analysis-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   const getStatusColor = () => {
     switch (streamingStatus) {
       case "Streaming": return "bg-success-green";
@@ -167,6 +197,17 @@ export function RealTimeResults({ analysisId, isStreaming }: RealTimeResultsProp
               <div className={`w-2 h-2 rounded-full ${getStatusColor()} ${streamingStatus === 'Streaming' ? 'animate-pulse' : ''}`} />
               <span className="text-sm text-gray-600" data-testid="text-streaming-status">{streamingStatus}</span>
             </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDownload}
+              disabled={results.length === 0}
+              data-testid="button-download"
+              className="text-gray-500 hover:text-primary-blue disabled:opacity-30"
+              title="Download as .txt"
+            >
+              <Download className="h-4 w-4" />
+            </Button>
             <Button
               variant="ghost"
               size="sm"
