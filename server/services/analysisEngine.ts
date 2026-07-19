@@ -54,9 +54,10 @@ export class AnalysisEngine {
   }
 
   getQuestions(analysisType: AnalysisType): AnalysisQuestion[] {
-    if (analysisType.includes('cognitive')) return this.getCognitiveQuestions();
-    if (analysisType.includes('psychological')) return this.getPsychologicalQuestions();
+    // Check psychopathological BEFORE psychological — it contains 'psychological' as a substring
     if (analysisType.includes('psychopathological')) return this.getPsychopathologicalQuestions();
+    if (analysisType.includes('psychological')) return this.getPsychologicalQuestions();
+    if (analysisType.includes('cognitive')) return this.getCognitiveQuestions();
     throw new Error(`Unknown analysis type: ${analysisType}`);
   }
 
