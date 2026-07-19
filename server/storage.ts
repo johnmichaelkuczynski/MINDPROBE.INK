@@ -8,7 +8,7 @@ import connectPgSimple from "connect-pg-simple";
 
 neonConfig.webSocketConstructor = ws;
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL! });
+const pool = new Pool({ connectionString: process.env.NEON_DATABASE_URL || process.env.DATABASE_URL! });
 const db = drizzle({ client: pool });
 
 const PostgresSessionStore = connectPgSimple(session);
