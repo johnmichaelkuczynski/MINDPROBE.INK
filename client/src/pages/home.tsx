@@ -8,9 +8,11 @@ import { ChunkSelector } from "@/components/ChunkSelector";
 import { AnalysisType, LLMProvider } from "@/types/analysis";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useToast } from "@/hooks/use-toast";
-import { Brain, HelpCircle, Settings, Plus } from "lucide-react";
+import { useUser } from "@/hooks/useUser";
+import { Brain, HelpCircle, Settings, Plus, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TextChunkingService, TextChunk } from "@shared/textUtils";
+import { SiGoogle } from "react-icons/si";
 
 export default function Home() {
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<AnalysisType>('cognitive');
@@ -25,6 +27,7 @@ export default function Home() {
   const [showChunkSelector, setShowChunkSelector] = useState(false);
   
   const { toast } = useToast();
+  const { user, authenticated, isLoading: isAuthLoading, logoutMutation } = useUser();
   const {
     currentAnalysisId,
     startAnalysis,
@@ -237,7 +240,7 @@ export default function Home() {
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
               <Brain className="text-primary-blue text-2xl h-8 w-8" />
-              <h1 className="text-2xl font-bold text-text-primary">Mind Reader</h1>
+              <h1 className="text-2xl font-bold text-text-primary">Mind Probe</h1>
               <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
                 Cognitive Profiler
               </span>
@@ -253,12 +256,38 @@ export default function Home() {
                 <Plus className="h-4 w-4 mr-2" />
                 New Analysis
               </Button>
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-primary-blue">
-                <HelpCircle className="h-5 w-5" />
-              </Button>
-              <Button variant="ghost" size="sm" className="text-gray-600 hover:text-primary-blue">
-                <Settings className="h-5 w-5" />
-              </Button>
+
+              {!isAuthLoading && (
+                authenticated && user ? (
+                  <div className="flex items-center space-x-2">
+                    <span className="text-sm text-gray-700 font-medium hidden sm:block" data-testid="text-display-name">
+                      {user.displayName || user.username}
+                    </span>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => logoutMutation.mutate()}
+                      disabled={logoutMutation.isPending}
+                      className="text-gray-600 border-gray-300 hover:bg-gray-100"
+                      data-testid="button-logout"
+                    >
+                      <LogOut className="h-4 w-4 mr-1" />
+                      Sign out
+                    </Button>
+                  </div>
+                ) : (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => { window.location.href = "/api/auth/google"; }}
+                    className="flex items-center space-x-2 border-gray-300 hover:bg-gray-50 text-gray-700"
+                    data-testid="button-google-login"
+                  >
+                    <SiGoogle className="h-4 w-4 text-[#4285F4]" />
+                    <span>Sign in with Google</span>
+                  </Button>
+                )
+              )}
             </div>
           </div>
         </div>

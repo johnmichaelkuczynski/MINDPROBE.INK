@@ -1,135 +1,378 @@
 import passport from "passport";
-import { Strategy as LocalStrategy } from "passport-local";
-import { Express } from "express";
+import { Strategy as GoogleStrategy } from "passport-google-oauth20";
 import session from "express-session";
-import { scrypt, randomBytes, timingSafeEqual } from "crypto";
-import { promisify } from "util";
+import connectPgSimple from "connect-pg-simple";
+import type { Express, RequestHandler } from "express";
 import { storage } from "./storage";
-import { User as SelectUser, insertUserSchema } from "@shared/schema";
+import pg from "pg";
 
 declare global {
   namespace Express {
-    interface User extends SelectUser {}
+    interface User {
+      id: string;
+      username: string;
+      googleId?: string | null;
+      email?: string | null;
+      displayName?: string | null;
+    }
   }
-}
-
-const scryptAsync = promisify(scrypt);
-
-type PublicUser = Omit<SelectUser, 'password'>;
-
-function toPublicUser(user: SelectUser): PublicUser {
-  const { password, ...publicUser } = user;
-  return publicUser;
-}
-
-async function hashPassword(password: string) {
-  const salt = randomBytes(16).toString("hex");
-  const buf = (await scryptAsync(password, salt, 64)) as Buffer;
-  return `${buf.toString("hex")}.${salt}`;
-}
-
-async function comparePasswords(supplied: string, stored: string) {
-  const [hashed, salt] = stored.split(".");
-  const hashedBuf = Buffer.from(hashed, "hex");
-  const suppliedBuf = (await scryptAsync(supplied, salt, 64)) as Buffer;
-  return timingSafeEqual(hashedBuf, suppliedBuf);
 }
 
 export function setupAuth(app: Express) {
-  if (process.env.NODE_ENV === "production" && !process.env.SESSION_SECRET) {
-    throw new Error("SESSION_SECRET must be set in production");
+  // Strip invisible characters (non-breaking spaces, zero-width chars, BOM) and
+  // surrounding whitespace that often sneak in when secrets are copy-pasted.
+  const sanitizeSecret = (v?: string) =>
+    (v || "").replace(/[\u00A0\u200B\u200C\u200D\uFEFF]/g, "").trim();
+
+  // Google OAuth client credentials (owner-provided).
+  // GOOGLE_LOGIN_* names take priority — reusable across the owner's apps and
+  // free of collisions with stale account-vault entries under older GOOGLE_* names.
+  const clientID = sanitizeSecret(
+    process.env.GOOGLE_LOGIN_CLIENT_ID ||
+      process.env.GOOGLE_OAUTH_CLIENT_ID ||
+      process.env.GOOGLE_CLIENT_ID
+  );
+  const clientSecret = sanitizeSecret(
+    process.env.GOOGLE_LOGIN_CLIENT_SECRET ||
+      process.env.GOOGLE_OAUTH_CLIENT_SECRET ||
+      process.env.GOOGLE_CLIENT_SECRET
+  );
+
+  const googleEnabled = !!(clientID && clientSecret);
+
+  if (!googleEnabled) {
+    console.warn(
+      "Google OAuth credentials not found (GOOGLE_CLIENT_ID / GOOGLE_CLIENT_SECRET). Google login disabled."
+    );
   }
 
-  const sessionSettings: session.SessionOptions = {
-    secret: process.env.SESSION_SECRET || "mindprobe-session-secret-dev-only",
-    resave: false,
-    saveUninitialized: false,
-    store: storage.sessionStore,
-    cookie: {
-      maxAge: 30 * 24 * 60 * 60 * 1000,
-      secure: process.env.NODE_ENV === "production",
-      httpOnly: true,
-      sameSite: 'lax',
-    }
-  };
+  // Trust proxy for production (behind Replit's proxy)
+  app.set('trust proxy', 1);
 
-  app.set("trust proxy", 1);
-  app.use(session(sessionSettings));
+  // Database-backed session store
+  const PgSession = connectPgSimple(session);
+  const pool = new pg.Pool({
+    connectionString: process.env.NEON_DATABASE_URL || process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
+  });
+
+  pool.on('error', (err) => {
+    console.error('Session pool error:', err);
+  });
+
+  pool.on('connect', () => {
+    console.log('Session pool connected to database');
+  });
+
+  // Session setup with database storage
+  const pgStore = new PgSession({
+    pool,
+    tableName: 'user_sessions',
+    createTableIfMissing: true,
+    errorLog: console.error.bind(console, 'Session store error:'),
+  });
+
+  const isProduction = process.env.NODE_ENV === 'production';
+
+  if (isProduction && !process.env.SESSION_SECRET) {
+    throw new Error("SESSION_SECRET environment variable is required in production");
+  }
+
+  app.use(
+    session({
+      store: pgStore,
+      secret: process.env.SESSION_SECRET || "mindprobe-session-secret-dev-only",
+      resave: false,
+      saveUninitialized: false,
+      cookie: {
+        secure: isProduction || !!process.env.REPLIT_DEV_DOMAIN,
+        httpOnly: true,
+        sameSite: 'lax',
+        maxAge: 30 * 24 * 60 * 60 * 1000,
+      },
+    })
+  );
+
+  console.log(`Session configured. Secure cookies: ${isProduction || !!process.env.REPLIT_DEV_DOMAIN}`);
+
   app.use(passport.initialize());
   app.use(passport.session());
 
-  passport.use(
-    new LocalStrategy(async (username, password, done) => {
-      try {
-        const user = await storage.getUserByUsername(username);
-        if (!user || !(await comparePasswords(password, user.password))) {
-          return done(null, false);
-        } else {
-          return done(null, user);
-        }
-      } catch (error) {
-        return done(error);
-      }
-    }),
-  );
+  passport.serializeUser((user, done) => {
+    done(null, user.id);
+  });
 
-  passport.serializeUser((user, done) => done(null, user.id));
   passport.deserializeUser(async (id: string, done) => {
     try {
-      const user = await storage.getUser(id);
-      done(null, user || false);
+      const user = await storage.getUserById(id);
+      done(null, user);
     } catch (error) {
       done(error);
     }
   });
 
-  app.post("/api/register", async (req, res, next) => {
-    try {
-      const validation = insertUserSchema.extend({
-        username: insertUserSchema.shape.username.min(3).max(50).trim(),
-        password: insertUserSchema.shape.password.min(8).max(100),
-      }).safeParse(req.body);
+  // --- Google OAuth 2.0 (optional login: the app itself is fully open) ---
+  if (googleEnabled) {
+    // Callback path is /auth/google/callback to match the redirect URIs
+    // registered in the owner's Google Cloud Console OAuth client.
+    const CALLBACK_PATH = "/auth/google/callback";
 
-      if (!validation.success) {
-        return res.status(400).json({ error: "Invalid input", details: validation.error.errors });
+    const getCallbackURL = () => {
+      if (process.env.NODE_ENV === "production") {
+        const prodDomain = (process.env.REPLIT_DOMAINS || "")
+          .split(",")[0]
+          ?.trim();
+        return `https://${prodDomain || "mindprobe.ink"}${CALLBACK_PATH}`;
       }
-
-      const existingUser = await storage.getUserByUsername(validation.data.username);
-      if (existingUser) {
-        return res.status(400).send("Username already exists");
+      if (process.env.REPLIT_DEV_DOMAIN) {
+        return `https://${process.env.REPLIT_DEV_DOMAIN}${CALLBACK_PATH}`;
       }
+      return `http://localhost:5000${CALLBACK_PATH}`;
+    };
 
-      const user = await storage.createUser({
-        username: validation.data.username,
-        password: await hashPassword(validation.data.password),
-      });
+    // Build the callback URL from the domain the visitor is actually on, so
+    // login works from every domain (custom domain, .replit.app, dev preview)
+    // as long as that domain's callback URI is registered in Google Cloud.
+    // Only known app domains are trusted; anything else falls back to the
+    // static default (prevents host-header tampering).
+    const trustedHosts = new Set<string>(
+      [
+        ...(process.env.REPLIT_DOMAINS || "").split(",").map((d) => d.trim()),
+        process.env.REPLIT_DEV_DOMAIN || "",
+        "mindprobe.ink",
+        "www.mindprobe.ink",
+        "localhost:5000",
+      ]
+        .filter(Boolean)
+        .map((h) => h.toLowerCase())
+    );
 
-      req.login(user, (err) => {
-        if (err) return next(err);
-        res.status(201).json(toPublicUser(user));
+    const getRequestCallbackURL = (req: any) => {
+      const host = (req.headers["x-forwarded-host"] || req.headers.host || "")
+        .toString()
+        .split(",")[0]
+        .trim()
+        .toLowerCase();
+      if (host && trustedHosts.has(host)) {
+        const proto = host.startsWith("localhost") ? "http" : "https";
+        return `${proto}://${host}${CALLBACK_PATH}`;
+      }
+      return getCallbackURL();
+    };
+
+    passport.use(
+      new GoogleStrategy(
+        {
+          clientID,
+          clientSecret,
+          callbackURL: getCallbackURL(),
+          state: true,
+          passReqToCallback: false,
+        } as any,
+        async (accessToken, refreshToken, profile, done) => {
+          try {
+            const email = profile.emails?.[0]?.value || null;
+            const displayName = profile.displayName || null;
+            const googleId = profile.id;
+
+            let user = await storage.getUserByGoogleId(googleId);
+
+            if (!user) {
+              if (email) {
+                user = await storage.getUserByEmail(email);
+              }
+
+              if (!user) {
+                const username = email?.split("@")[0] || `user_${googleId.substring(0, 8)}`;
+                user = await storage.createUserWithGoogle({
+                  username,
+                  googleId,
+                  email,
+                  displayName,
+                });
+                console.log(`Google OAuth: Created new user ${user.id} (${user.username})`);
+              } else {
+                user = await storage.updateUserGoogle(user.id, {
+                  googleId,
+                  displayName,
+                });
+              }
+            } else {
+              user = await storage.updateUserGoogle(user.id, {
+                displayName,
+              });
+            }
+
+            console.log(`Google OAuth: Login successful for user ${user.id}`);
+            done(null, user);
+          } catch (error) {
+            console.error("Google auth error:", error);
+            done(error as Error);
+          }
+        }
+      )
+    );
+
+    // Click 1: button links here -> 302 straight to Google's account chooser.
+    const loginHandler = (req: any, res: any, next: any) =>
+      passport.authenticate("google", {
+        scope: ["openid", "email", "profile"],
+        prompt: "select_account",
+        callbackURL: getRequestCallbackURL(req),
+      } as any)(req, res, next);
+    app.get("/api/auth/google", loginHandler);
+    app.get("/auth/google", loginHandler);
+
+    // Click 2 happens on Google; the callback lands the user inside the app
+    const callbackHandler = [
+      (req: any, res: any, next: any) =>
+        passport.authenticate("google", {
+          failureRedirect: "/?error=auth_failed",
+          callbackURL: getRequestCallbackURL(req),
+        } as any)(req, res, next),
+      (req: any, res: any) => {
+        (async () => {
+          try {
+            if (req.user) {
+              await storage.recordVisit(req.user.id, req.user.email ?? null);
+            }
+          } catch (visitErr) {
+            console.error("Failed to record login event:", visitErr);
+          }
+        })();
+        req.session.save(() => {
+          res.redirect("/");
+        });
+      },
+    ];
+    app.get(CALLBACK_PATH, ...callbackHandler);
+    app.get("/api/auth/google/callback", ...callbackHandler);
+
+    console.log("Google OAuth configured. Callback URL:", getCallbackURL());
+  }
+
+  app.get("/api/auth/user", (req, res) => {
+    if (req.isAuthenticated() && req.user) {
+      res.json({
+        authenticated: true,
+        user: {
+          id: req.user.id,
+          username: req.user.username,
+          email: req.user.email,
+          displayName: req.user.displayName,
+        },
       });
-    } catch (error) {
-      next(error);
+    } else {
+      res.json({ authenticated: false, user: null });
     }
   });
 
-  app.post("/api/login", passport.authenticate("local"), (req, res) => {
-    res.status(200).json(toPublicUser(req.user!));
+  app.get("/api/auth/me", (req, res) => {
+    if (req.isAuthenticated() && req.user) {
+      res.json({
+        id: req.user.id,
+        username: req.user.username,
+        email: req.user.email,
+        displayName: req.user.displayName,
+      });
+    } else {
+      res.status(401).json({ error: "Not authenticated" });
+    }
   });
 
-  app.post("/api/logout", (req, res, next) => {
+  app.post("/api/auth/logout", (req, res) => {
     req.logout((err) => {
-      if (err) return next(err);
-      req.session.destroy((destroyErr) => {
-        if (destroyErr) return next(destroyErr);
-        res.clearCookie('connect.sid');
-        res.sendStatus(200);
+      if (err) {
+        return res.status(500).json({ error: "Logout failed" });
+      }
+      req.session.destroy(() => {
+        res.clearCookie("connect.sid");
+        res.json({ success: true });
       });
     });
   });
 
-  app.get("/api/user", (req, res) => {
-    if (!req.isAuthenticated()) return res.sendStatus(401);
-    res.json(toPublicUser(req.user!));
+  // --- Admin: visitor analytics (restricted to the site owner) ---
+  app.get("/api/admin/visits", isAdmin, async (_req, res) => {
+    try {
+      const now = Date.now();
+      const dayAgo = new Date(now - 24 * 60 * 60 * 1000);
+      const monthAgo = new Date(now - 30 * 24 * 60 * 60 * 1000);
+      const yearAgo = new Date(now - 365 * 24 * 60 * 60 * 1000);
+
+      const [visitList, allTimestamps] = await Promise.all([
+        storage.getVisits(500),
+        storage.getVisitTimestampsSince(null),
+      ]);
+
+      const times = allTimestamps.map((t) => new Date(t).getTime());
+      const stats = {
+        allTime: times.length,
+        last24Hours: times.filter((t) => t >= dayAgo.getTime()).length,
+        lastMonth: times.filter((t) => t >= monthAgo.getTime()).length,
+        lastYear: times.filter((t) => t >= yearAgo.getTime()).length,
+      };
+
+      const buildSeries = (start: number, bucketMs: number, buckets: number, labelFn: (d: Date) => string) => {
+        const counts = new Array(buckets).fill(0);
+        for (const t of times) {
+          if (t >= start) {
+            const idx = Math.min(Math.floor((t - start) / bucketMs), buckets - 1);
+            counts[idx]++;
+          }
+        }
+        return counts.map((count, i) => ({
+          label: labelFn(new Date(start + i * bucketMs)),
+          count,
+        }));
+      };
+
+      const HOUR = 60 * 60 * 1000;
+      const DAY = 24 * HOUR;
+      const series = {
+        last24Hours: buildSeries(now - 24 * HOUR, HOUR, 24, (d) =>
+          d.toLocaleTimeString("en-US", { hour: "numeric", hour12: true })),
+        lastMonth: buildSeries(now - 30 * DAY, DAY, 30, (d) =>
+          d.toLocaleDateString("en-US", { month: "short", day: "numeric" })),
+        lastYear: buildSeries(now - 365 * DAY, 365 / 12 * DAY, 12, (d) =>
+          d.toLocaleDateString("en-US", { month: "short", year: "2-digit" })),
+        allTime: (() => {
+          const earliest = times.length ? Math.min(...times) : now;
+          const span = Math.max(now - earliest, DAY);
+          const buckets = Math.min(24, Math.max(6, Math.ceil(span / (30 * DAY))));
+          return buildSeries(earliest, span / buckets, buckets, (d) =>
+            d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "2-digit" }));
+        })(),
+      };
+
+      res.json({
+        stats,
+        series,
+        visits: visitList.map((v) => ({
+          id: v.id,
+          email: v.email,
+          visitedAt: v.visitedAt,
+        })),
+      });
+    } catch (error) {
+      console.error("Admin visits error:", error);
+      res.status(500).json({ error: "Failed to load visitor data" });
+    }
   });
 }
+
+const ADMIN_EMAIL = "johnmichaelkuczynski@gmail.com";
+
+export const isAdmin: RequestHandler = (req, res, next) => {
+  if (req.isAuthenticated() && req.user?.email?.toLowerCase() === ADMIN_EMAIL) {
+    return next();
+  }
+  res.status(403).json({ error: "Not authorized" });
+};
+
+export const isAuthenticated: RequestHandler = (req, res, next) => {
+  if (req.isAuthenticated()) {
+    return next();
+  }
+  res.status(401).json({ error: "Not authenticated" });
+};

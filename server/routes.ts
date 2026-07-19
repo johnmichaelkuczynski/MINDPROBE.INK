@@ -5,6 +5,7 @@ import { insertAnalysisSchema, insertDialogueSchema } from "@shared/schema";
 import { LLMService, LLMProvider } from "./services/llmService";
 import { FileProcessor, upload } from "./services/fileProcessor";
 import { AnalysisEngine, AnalysisType } from "./services/analysisEngine";
+import { setupAuth } from "./auth";
 import Stripe from "stripe";
 
 let stripe: Stripe | null = null;
@@ -15,6 +16,8 @@ if (process.env.STRIPE_SECRET_KEY) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
+  setupAuth(app);
+
   const llmService = new LLMService();
   const analysisEngine = new AnalysisEngine();
 

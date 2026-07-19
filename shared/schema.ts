@@ -6,9 +6,19 @@ import { z } from "zod";
 export const users = pgTable("users", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   username: text("username").notNull().unique(),
-  password: text("password").notNull(),
+  password: text("password"),
   credits: integer("credits").notNull().default(0),
   isUnlimited: boolean("is_unlimited").notNull().default(false),
+  googleId: text("google_id").unique(),
+  email: text("email"),
+  displayName: text("display_name"),
+});
+
+export const userVisits = pgTable("user_visits", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  userId: varchar("user_id").references(() => users.id),
+  email: text("email"),
+  visitedAt: timestamp("visited_at").defaultNow(),
 });
 
 export const analysisResults = pgTable("analysis_results", {
@@ -27,7 +37,7 @@ export const analysisResults = pgTable("analysis_results", {
 export const dialogueMessages = pgTable("dialogue_messages", {
   id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
   analysisId: varchar("analysis_id").references(() => analysisResults.id).notNull(),
-  sender: text("sender").notNull(), // 'user' or 'system'
+  sender: text("sender").notNull(),
   message: text("message").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -64,6 +74,7 @@ export const insertDialogueSchema = createInsertSchema(dialogueMessages).pick({
 
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
+export type UserVisit = typeof userVisits.$inferSelect;
 export type AnalysisResult = typeof analysisResults.$inferSelect;
 export type InsertAnalysis = z.infer<typeof insertAnalysisSchema>;
 export type DialogueMessage = typeof dialogueMessages.$inferSelect;
