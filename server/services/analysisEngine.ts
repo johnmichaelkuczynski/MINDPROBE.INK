@@ -131,10 +131,10 @@ Text: ${text}`;
     const contextPrompt = additionalContext ? `Additional context: ${additionalContext}\n\n` : '';
 
     const lengthInstruction = verbosity === 'micro'
-      ? `RESPONSE LENGTH: Be extremely concise. Your entire answer (excluding the score line) must be no more than 3 sentences. Lead with your sharpest observation, then give the score. No padding, no hedging.`
+      ? `RESPONSE LENGTH: One sentence — two at the absolute most. State your verdict and the score. Nothing else. No setup, no hedging, no padding.`
       : verbosity === 'comprehensive'
-      ? `RESPONSE LENGTH: This is a comprehensive analysis. Give an exhaustive, fully developed response. Quote extensively from the text. Explore every dimension of the question with maximum analytical depth. Do not truncate your thinking.`
-      : `RESPONSE LENGTH: Give a focused but substantive answer — enough to demonstrate the reasoning behind the score, no more.`;
+      ? `RESPONSE LENGTH: Write two or more full paragraphs. You must include at least one direct illustrative quote from the text in each paragraph. Explore every dimension of the question thoroughly. Do not truncate.`
+      : `RESPONSE LENGTH: One focused paragraph. Include at least one direct illustrative quote from the text to support your assessment. No more, no less.`;
 
     const prompt = `${this.completeInstructions}
 
