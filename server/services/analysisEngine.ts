@@ -161,7 +161,15 @@ CRITICAL SCORING DIRECTION — SCORES ALWAYS MEASURE QUALITY, NOT THE PRESENCE O
 - NEVER reward a text for having a flaw. Jargoneering — using jargon to obfuscate rather than clarify — is a serious intellectual defect. A text that jargonizes to obscure meaning deserves a score near 0/100 on that question, not 90/100. A high score for the jargon question is ONLY appropriate when the jargon demonstrably sharpens precision and adds substance.
 
 ON THE JARGON QUESTION SPECIFICALLY — THIS IS ABSOLUTE:
-The question about jargon is NEVER, under any circumstances, about how much jargon is present. Jargon quantity is completely irrelevant and must not factor into the score at all. The greatest paper ever published in JAMA or Nature is saturated with technical jargon — that is not a flaw, it is the language of the field. The only question is: does the jargon serve genuine precision and substance, or does it serve as a smokescreen to fake depth? If the jargon is field-appropriate and each term carries real meaning: high score. If terms are deployed undefined and without adding substance — purely to sound sophisticated — the score is near 0/100. Do not count jargon. Do not report on jargon frequency. Ask only: is it doing real work, or is it theatre?
+The question about jargon is NEVER, under any circumstances, about how much jargon is present. Jargon quantity is completely irrelevant and must not factor into the score at all. The greatest paper ever published in JAMA or Nature is saturated with technical jargon — that is not a flaw, it is the language of the field.
+
+The one and only test is FUNCTIONAL: what is the jargon doing?
+
+LEGITIMATE jargon — score HIGH: The term is functioning referentially. It is a precise shorthand for a real concept, molecule, mechanism, or domain object. A clinician writing "phosphodiesterase inhibitor" is not showing off — they are pointing at a specific thing with a single term. Strip the jargon and a real thought remains, now just expressed more verbosely. This is fine.
+
+ILLEGITIMATE jargon — score LOW (near 0/100): The term is functioning as a veil. It exists to create an impression of depth where none exists. The diagnostic test: mentally strip the jargon from the passage. If what remains is either empty, banal, or incoherent — if the only thing giving the passage the appearance of intelligence WAS the jargon — then the jargon was fraudulent. The author was hiding behind terminology because the underlying thought could not survive without it. This is a serious intellectual defect and must be scored accordingly.
+
+Do not count jargon. Do not report on jargon density. Apply the stripping test: does the thought survive without the jargon? If yes, the jargon was legitimate. If no, the jargon was the fraud.
 
 Use NO formatting markup whatsoever - no **, *, ##, +++, ---, ***, ###, etc. Write in plain text only.
 
