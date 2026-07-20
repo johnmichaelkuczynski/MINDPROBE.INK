@@ -231,7 +231,7 @@ ${ANTI_SYCOPHANCY_CLAUSES}`;
 
       for (const question of batch) {
         let finalAnswer = '';
-        for await (const event of this.processQuestion(question, text, additionalContext, provider, verbosity, skeleton, ledger, jobId)) {
+        for await (const event of this.processQuestion(question, text, additionalContext, provider, verbosity, skeleton, ledger, jobId, analysisType)) {
           finalAnswer = event.data.answer;
           yield event;
         }
@@ -290,6 +290,42 @@ Text: ${text}`;
     yield { type: 'summary', data: { content: summary, complete: true } };
   }
 
+  private getDomainScoringCalibration(analysisType: AnalysisType): string {
+    const domain = analysisType.includes('psychological') || analysisType.includes('psychopathological')
+      ? 'clinical'
+      : 'cognitive';
+
+    if (domain === 'clinical') {
+      return `CLINICAL SCORING CALIBRATION — READ THIS BEFORE SCORING:
+
+The score N/100 measures the INTENSITY or SEVERITY of the clinically significant feature the question asks about. It does NOT measure "how good" the writer is. It measures how prominently the relevant clinical marker is present.
+
+For questions framed as dichotomies, the score measures the pathological or clinically significant end:
+  "paranoid vs reality-based" → score = degree of paranoid ideation (not reality-testing)
+  "fragmented vs stable identity" → score = degree of fragmentation
+  "brittle defenses vs ego strength" → score = degree of brittleness
+  "full human beings vs objects/persecutors" → score = degree of objectification/persecution framing
+  "authentic engagement vs phony simulation" → score = degree of inauthenticity
+
+Score interpretation:
+  1–10   = feature essentially absent; cannot be detected
+  11–30  = faint trace; possible but not clearly present
+  31–50  = moderately present; detectable pattern
+  51–70  = clearly present; prominent feature of the text
+  71–85  = strongly present; unmistakable and consistent
+  86–95  = very strongly present; would surprise a clinician if absent
+  96–99  = textbook, maximal expression; a teaching example
+
+DO NOT cluster scores in the 50–75 range out of diplomatic habit. If a text exhibits obvious clinical-level paranoid ideation, flagrant reality testing failures, or textbook psychotic features, the relevant scores MUST be in the 86–99 range. Giving such a text a 50 because you want to seem balanced is a clinical error, not a virtue.
+
+Quote the text directly to justify your score. Scores without quoted evidence are not acceptable.`;
+    }
+
+    return `COGNITIVE SCORING CALIBRATION:
+
+A score of N/100 means the author outperforms N% of all writers with respect to the cognitive parameter defined by the question. Use the full range 1–99. Do not cluster in the middle. A text of genuine brilliance scores 95+; a text of genuine stupidity scores under 10. Most texts fall between 30 and 70. Use whatever the text actually deserves.`;
+  }
+
   private async *processQuestion(
     question: AnalysisQuestion,
     text: string,
@@ -298,7 +334,8 @@ Text: ${text}`;
     verbosity: Verbosity,
     skeleton: DocumentSkeleton | null,
     ledger: LedgerEntry[],
-    jobId: string
+    jobId: string,
+    analysisType: AnalysisType
   ): AsyncGenerator<{ type: 'question'; data: any }> {
     const contextPrompt = additionalContext ? `Additional context: ${additionalContext}\n\n` : '';
 
@@ -310,6 +347,7 @@ Text: ${text}`;
 
     const skeletonBlock = this.formatSkeletonBlock(skeleton);
     const ledgerBlock = this.formatLedgerBlock(ledger);
+    const scoringCalibration = this.getDomainScoringCalibration(analysisType);
 
     const dbContext = jobId !== 'memory-only'
       ? await tractatus.buildTieredPromptContext(jobId)
@@ -327,17 +365,11 @@ Text: ${text}
 
 ANSWER THIS QUESTION IN CONNECTION WITH THIS TEXT.
 
-A score of N/100 (e.g. 73/100) means that the author outperforms N% of writers with respect to the parameter defined by the question.
+${scoringCalibration}
 
-You are not grading; you are answering these questions. You do not use a risk-averse standard; you do not attempt to be diplomatic; you do not attempt to comply with risk-averse, medium-range IQ, academic norms. You do not make assumptions about the level of the paper; it could be a work of the highest excellence and genius, or it could be the work of a moron.
+You are not applying risk-averse, middle-of-the-road evaluation standards. You are not being diplomatic. You are not complying with institutional timidity or midwit academic norms. You call what you see, using the full scoring range, and you justify every score with direct quotations from the text.
 
-If a work is a work of genius, you say that, and you say why; you do not shy away from giving what might conventionally be regarded as excessively "superlative" scores; you give it the score it deserves, not the score that a midwit committee would say it deserves.
-
-You think very very very hard about your answers; make it very clear that you are not to default to cookbook, midwit evaluation protocols.
-
-DO NOT GIVE CREDIT MERELY FOR USE OF JARGON OR FOR REFERENCING AUTHORITIES. FOCUS ON SUBSTANCE. ONLY GIVE POINTS FOR SCHOLARLY REFERENCES/JARGON IF THEY UNAMBIGUOUSLY INCREASE SUBSTANCE.
-
-JARGON: The question about jargon is never about quantity. The test is functional — is the jargon doing real referential work (pointing at a precise concept), or is it a veil that, if removed, would expose empty thought? Score HIGH when jargon sharpens precision. Score LOW when it obscures.
+You think very hard about your answers. You do not default to cookbook protocols.
 
 Use NO formatting markup whatsoever - no **, *, ##, +++, ---, ***, ###, etc. Write in plain text only.
 
@@ -403,50 +435,39 @@ Score: XX/100`;
     ];
   }
 
-  private getPsychologicalQuestions(): AnalysisQuestion[] {
+  private getClinicalQuestions(): AnalysisQuestion[] {
     return [
-      { id: 'p1', question: 'Does the text reveal a stable, coherent self-concept, or is the self fragmented/contradictory?', order: 1 },
-      { id: 'p2', question: 'Is there evidence of ego strength (resilience, capacity to tolerate conflict/ambiguity), or does the psyche rely on brittle defenses?', order: 2 },
-      { id: 'p3', question: 'Are defenses primarily mature (sublimation, humor, anticipation), neurotic (intellectualization, repression), or primitive (splitting, denial, projection)?', order: 3 },
-      { id: 'p4', question: 'Does the writing show integration of affect and thought, or are emotions split off / overly intellectualized?', order: 4 },
-      { id: 'p5', question: 'Is the author\'s stance defensive/avoidant or direct/engaged?', order: 5 },
-      { id: 'p6', question: 'Does the psyche appear narcissistically organized (grandiosity, fragile self-esteem, hunger for validation), or not?', order: 6 },
-      { id: 'p7', question: 'Are desires/drives expressed openly, displaced, or repressed?', order: 7 },
-      { id: 'p8', question: 'Does the voice suggest internal conflict (superego vs. id, competing identifications), or monolithic certainty?', order: 8 },
-      { id: 'p9', question: 'Is there evidence of object constancy (capacity to sustain nuanced view of others) or splitting (others seen as all-good/all-bad)?', order: 9 },
-      { id: 'p10', question: 'Is aggression integrated (channeled productively) or dissociated/projected?', order: 10 },
-      { id: 'p11', question: 'Is the author capable of irony/self-reflection, or trapped in compulsive earnestness / defensiveness?', order: 11 },
-      { id: 'p12', question: 'Does the text suggest psychological growth potential (openness, curiosity, capacity to metabolize experience) or rigidity?', order: 12 },
-      { id: 'p13', question: 'Is the discourse paranoid / persecutory (others as threats, conspiracies) or reality-based?', order: 13 },
-      { id: 'p14', question: 'Does the tone reflect authentic engagement with reality, or phony simulation of depth?', order: 14 },
-      { id: 'p15', question: 'Is the psyche resilient under stress, or fragile / evasive?', order: 15 },
-      { id: 'p16', question: 'Is there evidence of compulsion or repetition (obsessional returns to the same themes), or flexible progression?', order: 16 },
-      { id: 'p17', question: 'Does the author show capacity for intimacy / genuine connection, or only instrumental/defended relations?', order: 17 },
-      { id: 'p18', question: 'Is shame/guilt worked through constructively or disavowed/projected?', order: 18 },
+      { id: 'c1', question: 'What is the writer\'s overall level of character organization: healthy/neurotic (integrated identity, mature defenses, reality testing intact), borderline (identity diffusion, primitive defenses, reality testing intact but fragile), psychotic (identity fragmented, reality testing impaired), or mixed?', order: 1 },
+      { id: 'c2', question: 'Is there any evidence of reported perceptions without external corroboration (things seen, heard, or felt that others don\'t confirm)?', order: 2 },
+      { id: 'c3', question: 'Is malign agency attributed to unseen entities, groups, or forces?', order: 3 },
+      { id: 'c4', question: 'Are there ideas of reference — signs that the writer treats neutral events (license plates, overheard remarks, patterns) as personally directed?', order: 4 },
+      { id: 'c5', question: 'Are phonological or associative connections (rhyme, sound, wordplay) treated as though they carry semantic or causal weight?', order: 5 },
+      { id: 'c6', question: 'Are there magical rules governing behavior — rituals, protective objects, forbidden actions with no rational basis?', order: 6 },
+      { id: 'c7', question: 'Is there grandiose special knowledge, mission, or identity that isn\'t supported by external context?', order: 7 },
+      { id: 'c8', question: 'What is the writer\'s dominant defensive style: repression, splitting, projection, projective identification, denial, intellectualization, sublimation, reaction formation, or something else?', order: 8 },
+      { id: 'c9', question: 'Are other people in the text rendered as full human beings with independent inner lives, as need-satisfying objects, as persecutors, as extensions of the writer, or are they absent entirely?', order: 9 },
+      { id: 'c10', question: 'Does the writer split people (or themselves) into all-good and all-bad, sometimes flipping the same person between the two?', order: 10 },
+      { id: 'c11', question: 'What is the affective quality of the writing: appropriate, flat, labile, constricted, over-modulated by intellectualization, or dysregulated?', order: 11 },
+      { id: 'c12', question: 'Is there evidence of internal conflict — worry about right conduct, ambivalence, doing-and-undoing, obsessive circling, competing wishes the writer can\'t reconcile?', order: 12 },
+      { id: 'c13', question: 'Are there specific neurotic traits present: obsessionality, compulsiveness, phobic avoidance, panic tendency, hypochondriacal focus, scrupulosity?', order: 13 },
+      { id: 'c14', question: 'If neurotic traits are present, are they impairing function or enhancing it (obsessionality can drive both dysfunction and elite performance depending on what it seizes on)?', order: 14 },
+      { id: 'c15', question: 'Does the writer show capacity for insight — awareness of their own patterns, limitations, or the way they might appear to others?', order: 15 },
+      { id: 'c16', question: 'How does reality testing hold under stress within the passage — does the writer stay grounded when describing difficult material, or do they lose purchase?', order: 16 },
+      { id: 'c17', question: 'Is there evidence of transactional-only relationships, absence of loyalty or empathy, exploitation of others, or cruelty (to people, children, animals)?', order: 17 },
+      { id: 'c18', question: 'Is there rule-compliant behavior that mocks the spirit of the rules — technically-legal manipulation, weaponized procedure, calibrated cruelty within permitted limits?', order: 18 },
+      { id: 'c19', question: 'Is there evidence of impulsivity, promiscuity, substance use, thrill-seeking, or reckless disregard for consequences?', order: 19 },
+      { id: 'c20', question: 'Is the writer\'s identity stable and continuous across the passage, or does it fragment, shift, or contradict itself in ways the writer doesn\'t notice?', order: 20 },
+      { id: 'c21', question: 'What is the writer\'s stance toward authority, dependency, and being cared for — accepting, defiant, contemptuous, clinging, avoidant, or ambivalent?', order: 21 },
+      { id: 'c22', question: 'Given all of the above, what are the most plausible clinical framings (with an explicit disclaimer that these are not diagnoses), and are there multiple frames operative simultaneously?', order: 22 },
     ];
   }
 
+  private getPsychologicalQuestions(): AnalysisQuestion[] {
+    return this.getClinicalQuestions();
+  }
+
   private getPsychopathologicalQuestions(): AnalysisQuestion[] {
-    return [
-      { id: 'pp1', question: 'Is there evidence of formal thought disorder — loosening of associations, tangentiality, or incoherence — or is the thinking tightly organized?', order: 1 },
-      { id: 'pp2', question: 'Does the text show signs of paranoid ideation — ideas of reference, persecutory themes, or pathological suspiciousness?', order: 2 },
-      { id: 'pp3', question: 'Is there evidence of grandiosity — an inflated sense of special status, mission, or powers not grounded in reality?', order: 3 },
-      { id: 'pp4', question: 'Does the writing show affective dysregulation — inappropriate affect, extreme emotional swings, or flattened affect?', order: 4 },
-      { id: 'pp5', question: 'Is reality testing intact? Does the author distinguish clearly between fantasy and fact, or is the boundary blurred?', order: 5 },
-      { id: 'pp6', question: 'Is there evidence of obsessional thinking — intrusive, repetitive, ego-dystonic ideation — or compulsive ideational patterns?', order: 6 },
-      { id: 'pp7', question: 'Are there markers of depressive cognition — hopelessness, self-condemnation, nihilism, or anhedonic framing of experience?', order: 7 },
-      { id: 'pp8', question: 'Is there evidence of hypomanic or manic ideation — pressured quality, flight of ideas, decreased need for logical grounding?', order: 8 },
-      { id: 'pp9', question: 'Does the text reveal dissociative phenomena — depersonalization, derealization, identity fragmentation, or discontinuities in the narrative self?', order: 9 },
-      { id: 'pp10', question: 'Are there narcissistic injury markers — extreme sensitivity to perceived slights, rageful responses to criticism, entitlement?', order: 10 },
-      { id: 'pp11', question: 'Is there evidence of splitting as a dominant defensive operation — idealizing and devaluing alternately, with no tolerance for ambivalence?', order: 11 },
-      { id: 'pp12', question: 'Does the text show impaired impulse regulation — evidence of acting out ideation, poor delay of gratification in argument?', order: 12 },
-      { id: 'pp13', question: 'Is there magical or concrete thinking — failure to sustain abstraction, over-literalism, or belief in thought-action fusion?', order: 13 },
-      { id: 'pp14', question: 'Does the author show evidence of somatic preoccupation or hypochondriacal ideation — excessive focus on bodily states, health, decay?', order: 14 },
-      { id: 'pp15', question: 'Is there evidence of social-pragmatic failure — inability to gauge audience, violation of conversational norms, tone-deafness?', order: 15 },
-      { id: 'pp16', question: 'Does the text show antisocial or psychopathic features — callousness, instrumental use of others, absence of guilt or empathy markers?', order: 16 },
-      { id: 'pp17', question: 'Is there evidence of anxiety dysregulation — catastrophizing, excessive hedging, or paralytic ambivalence?', order: 17 },
-      { id: 'pp18', question: 'Overall: does the psychopathological profile, if any emerges, represent a consistent diagnostic picture, or are the markers scattered and non-specific?', order: 18 },
-    ];
+    return this.getClinicalQuestions();
   }
 
   private delay(ms: number): Promise<void> {
