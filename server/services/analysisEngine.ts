@@ -295,35 +295,48 @@ Text: ${text}`;
 
     if (isPsychological) {
       return `════════════════════════════════════════════════════════════════
-PSYCHOLOGICAL ANALYSIS — MANDATORY RULES AND SCORING OVERRIDE
+PSYCHOLOGICAL ANALYSIS — MANDATORY PROTOCOL RULES
 ════════════════════════════════════════════════════════════════
 
-MANDATORY EVALUATION RULES — APPLY BEFORE ANSWERING ANY QUESTION:
+These rules are absolute. Violating any one of them invalidates the entire analysis.
 
-NUMBER ONE RULE: IF A TRAIT DOES NOT IMPAIR FUNCTIONALITY, IT IS NOT PSYCHOPATHOLOGICAL. IF IT IMPROVES FUNCTIONALITY, IT IS THE OPPOSITE OF PSYCHOPATHOLOGICAL.
+NUMBER ONE RULE: IF A TRAIT DOES NOT IMPAIR FUNCTIONALITY, IT IS NOT PSYCHOPATHOLOGICAL. IF IT ENHANCES FUNCTIONALITY, IT IS THE OPPOSITE OF PSYCHOPATHOLOGICAL. Apply this filter to every observation before stating it.
 
-Do NOT use "grandiosity" as a standalone diagnostic category. Self-confidence, even extreme self-confidence ("I wrote an impeccable essay"), may be accurate and may reflect healthy ego-functioning — or even hyper-functionality. Grandiosity is only relevant if there is independent evidence that it causes a well-established dysfunction. Even then, it may be a healthy response to dysfunction rather than the cause of it. When in doubt, drop "grandiosity" as a category entirely.
+RULE: NEVER use the mere occurrence of a word as grounds for a characterization. If the author says he has "special knowledge" of someone's "hostile intentions," this does not mean psychosis or paranoia. He may have been physically attacked by that person on thirteen occasions and thereby acquired direct experiential knowledge of their hostility. Evaluate the CLAIM, not the vocabulary.
 
-Do NOT use "narcissism" as a diagnostic category. It is too ambiguous — it can be either functional or dysfunctional depending on context. If the behavior is functional, it is not a pathology. If it is dysfunctional, name the dysfunction specifically without labeling it narcissism.
+RULE: Grandiosity is relevant ONLY as a descriptor, never as a diagnostic category. If grandiosity clearly mediates an obvious, independently verifiable dysfunction, it may be mentioned — but only to that extent. Self-confidence, even extreme self-confidence, may be accurate and may reflect healthy or hyper-functional ego-functioning. When in doubt, drop it entirely.
 
-"Psychopathy" is a useful clinical category — but only when understood independently of narcissism, and only when there is clear evidence of absence of empathy, exploitation, or cruelty that impairs the subject's ability to function in a moral or social world.
+RULE: Do NOT use "narcissism" as a diagnostic category. It is too ambiguous. If a behavior is functional, it is not a pathology. If it is dysfunctional, name the specific dysfunction without the label.
 
-SCORING OVERRIDE — IGNORE ALL OTHER SCORING INSTRUCTIONS:
+RULE: Attributing an event to oneself does not constitute projection. Projection is attributing one's own internal states to others. Naming a real person who committed a real act is description, not projection.
 
-N/100 = the author is MORE FUNCTIONAL than N% of people on the dimension being examined.
+RULE: Moral categories are NOT psychological categories. Whether someone's actions were right or wrong is irrelevant to psychological analysis. The analysis concerns function, not virtue.
 
-  1–10:   Severely dysfunctional. Impairs basic life tasks.
-  11–30:  Significantly dysfunctional. Causes clear problems.
-  31–50:  Moderately dysfunctional or mixed — some impairment.
-  51–70:  Mostly functional with notable limitations.
-  71–85:  Functionally strong. Minor or no impairment.
-  86–99:  Highly functional. Asset or counter-pathological.
+RULE: If the author sees another party as "an adversary," this does NOT indicate derangement or one-dimensional thinking. In adversarial contexts (legal proceedings, competitive situations, genuine conflicts), seeing an opponent as an adversary is CORRECT. A multi-dimensional portrait of the opponent would be misconceived and possibly counterproductive in such contexts.
 
-For questions about STRENGTHS (Q1, Q2, Q9, Q13, Q15-17): high score = substantial functional asset.
-For questions about WEAKNESSES (Q3, Q4, Q10, Q14, Q18): low score = severe dysfunction.
-For descriptive questions (defense mechanism, career, neurosis/psychosis type): score reflects overall functional health of what is described.
+RULE: Self-confidence is NOT grandiosity. Attribute grandiosity only where there is clear evidence of a self-belief that is both demonstrably false AND causing dysfunction.
 
-USE THE FULL RANGE. Quote the text directly to justify every score.
+RULE: Attributing ill-will to others does not mean the author is wrong. People do in fact act with ill-will toward others. The attribution must be evaluated against what the text actually describes — not assumed to be paranoid by default.
+
+RULE: Questioning authority or refusing to accept a ruling does not mean the author is wrong. Courts are sometimes corrupt, judges are sometimes biased, rules are sometimes unjust. The refusal to accept authority must be evaluated on its merits.
+
+RULE: There is no inference from psychological facts to moral judgments, or from moral judgments to psychological facts. Badness is not illness. Illness is not badness.
+
+RULE: "I am entitled to X" does NOT constitute entitlement syndrome. If the author is, as a matter of contractual or legal fact, entitled to X, then saying so is accurate. Entitlement syndrome refers to claims of entitlement that are not supported by any objective basis.
+
+RULE: This app processes FRAGMENTS — diary entries, jotted thoughts, excerpts, passages. The text does NOT carry its evidentiary record with it. Do NOT treat the absence of bank statements, police reports, or documentary proof within the text as evidence that the author's claims are uncorroborated. The claims must be evaluated for internal plausibility, not for documentary completeness.
+
+RULE: Negative emotions are NOT ipso facto pathological. Concern, anxiety, frustration, anger — all are appropriate responses to genuinely adverse situations. Evaluate whether the emotion is proportionate to what the text actually describes, not whether the emotion itself is present. Positive emotions directed toward oneself are also NOT ipso facto pathological.
+
+RULE: Do not pathologize writing style. Stark, direct, uncaveated language — "the judge is not doing his job" — is not a symptom. It is a communication style. It may reflect precision, confidence, and clarity. Excessive qualification in other writers reflects THEIR anxiety, not this author's pathology.
+
+RULE: Do not pathologize focus. Tracking a legal case closely, monitoring deadlines, maintaining detailed knowledge of the facts — these are competent behaviors in a high-stakes situation, not obsessionality.
+
+RULE: Do not pathologize the absence of empathy toward people who have wronged the author in a legal context. Legal contexts are transactional by design. Describing a trustee by her legal acts rather than her emotional complexity is appropriate, not psychopathic.
+
+TONE AND FORMAT: Your answers must be starkly stated. No blandishments. No "I can tell this person is frustrated." No reflective listening. No risk-averse middle ground. State what you see directly, justify it with specific quotations from the text, and say nothing you cannot defend with evidence from the passage.
+
+NO SCORES. These questions are descriptive and analytical. Do not append a Score: XX/100 to any answer. The analysis is qualitative.
 ════════════════════════════════════════════════════════════════`;
     }
 
@@ -362,6 +375,16 @@ A score of N/100 means the author outperforms N% of all writers on the cognitive
       .filter(s => s.trim().length > 0)
       .join('\n\n');
 
+    const isDescriptive = analysisType.includes('psychological') || analysisType.includes('psychopathological');
+
+    const responseStructure = isDescriptive
+      ? `Structure your response as:
+[Your analysis with specific quotations and reasoning — direct, unvarnished, no hedging, no blandishments, no reflective-listening language. State exactly what you see and justify it with evidence from the text.]`
+      : `Structure your response as:
+[Your analysis with specific quotations and reasoning]
+
+Score: XX/100`;
+
     const prompt = `${scoringCalibration}
 
 ${this.completeInstructions}
@@ -372,7 +395,7 @@ Text: ${text}
 
 ANSWER THIS QUESTION IN CONNECTION WITH THIS TEXT.
 
-You are not applying risk-averse, middle-of-the-road evaluation standards. You are not being diplomatic. You call what you see, using the full scoring range, and you justify every score with direct quotations from the text.
+You are not applying risk-averse, middle-of-the-road evaluation standards. You are not being diplomatic. You call what you see and you justify every claim with direct quotations from the text.
 
 You think very hard about your answers. You do not default to cookbook protocols.
 
@@ -380,10 +403,7 @@ Use NO formatting markup whatsoever - no **, *, ##, +++, ---, ***, ###, etc. Wri
 
 ${lengthInstruction}
 
-Structure your response as:
-[Your analysis with specific quotations and reasoning]
-
-Score: XX/100`;
+${responseStructure}`;
 
     let answer = '';
     for await (const chunk of this.llmService.streamMessage(provider, prompt)) {
@@ -469,32 +489,26 @@ Score: XX/100`;
 
   private getPsychologicalQuestions(): AnalysisQuestion[] {
     return [
-      { id: 'ps1', question: 'WHAT IS THIS PERSON\'S GREATEST PSYCHOLOGICAL STRENGTH? I.E. WHAT IS THE PRIMARY RESPECT IN WHICH THIS PERSON IS FUNCTIONAL? PROVIDE EXAMPLE AND QUOTE.', order: 1 },
-      { id: 'ps2', question: 'IN WHAT OTHER WAYS IS THIS PERSON HIGHLY FUNCTIONAL? PROVIDE EXAMPLES AND QUOTES.', order: 2 },
-      { id: 'ps3', question: 'WHAT IS THIS PERSON\'S GREATEST PSYCHOLOGICAL WEAKNESS? I.E. WHAT IS THE PRIMARY RESPECT IN WHICH THIS PERSON IS DYSFUNCTIONAL? PROVIDE EXAMPLE AND QUOTE.', order: 3 },
-      { id: 'ps4', question: 'IN WHAT OTHER WAYS IS THIS PERSON HIGHLY DYSFUNCTIONAL?', order: 4 },
-      { id: 'ps5', question: 'OF THIS PERSON\'S DYSFUNCTIONALITIES, DO THEY APPEAR TO BE PERMANENT OR SPECIFIC TO A PASSING SITUATION?', order: 5 },
-      { id: 'ps6', question: 'IF ENDURING, HOW ARE THEY CURRENTLY PRESENTING?', order: 6 },
-      { id: 'ps7', question: 'WHAT IS THIS PERSON\'S PRIMARY DEFENSE MECHANISM?', order: 7 },
-      { id: 'ps8', question: 'IS IT FUNCTIONAL OR DYSFUNCTIONAL IN THIS CONTEXT?', order: 8 },
-      { id: 'ps9', question: 'IF FUNCTIONAL, EXPLAIN HOW.', order: 9 },
-      { id: 'ps10', question: 'IF DYSFUNCTIONAL, EXPLAIN HOW.', order: 10 },
-      { id: 'ps11', question: 'WHAT OTHER DEFENSE MECHANISMS ARE PRESENT?', order: 11 },
-      { id: 'ps12', question: 'ARE THEY FUNCTIONAL OR DYSFUNCTIONAL IN THIS CONTEXT?', order: 12 },
-      { id: 'ps13', question: 'IF FUNCTIONAL, EXPLAIN HOW.', order: 13 },
-      { id: 'ps14', question: 'IF DYSFUNCTIONAL, EXPLAIN HOW.', order: 14 },
-      { id: 'ps15', question: 'DOES THE PERSON HAVE A STRONG SENSE OF SELF? OR IS THAT PERSON DEPENDENT ON OTHERS FOR A SENSE OF IDENTITY?', order: 15 },
-      { id: 'ps16', question: 'WHAT CAREER DOES THIS PERSON LIKELY HAVE? IF NOT ENOUGH INFORMATION, FOR WHAT CAREER, IF ANY, DOES THIS PERSON\'S CHARACTER-TRAITS (INCLUDING DEFENSES) MAKE THEM SUITABLE?', order: 16 },
-      { id: 'ps17', question: 'HOW DOES THIS PERSON APPEAR TO COMPENSATE (I.E. FUNCTIONALLY ADAPT TO ADVERSITY)?', order: 17 },
-      { id: 'ps18', question: 'HOW DOES THIS PERSON APPEAR TO DECOMPENSATE (I.E. DYSFUNCTIONALLY ADAPT TO ADVERSITY)?', order: 18 },
-      { id: 'ps19', question: 'WITH REGARD TO THIS PERSON\'S DYSFUNCTIONAL DEFENSES AND OTHER SYMPTOMS, DO THEY PRIMARILY INVOLVE INTERNAL CONFLICT? OR DO THEY PRIMARILY INVOLVE ALIENATION, ON AN EPISTEMIC (KNOWLEDGE-RELATED) LEVEL, FROM THE EXTERNAL WORLD?', order: 19 },
-      { id: 'ps20', question: 'ELABORATE ON RESPONSE TO LAST QUESTION.', order: 20 },
-      { id: 'ps21', question: 'TAKING NEUROSIS TO BE CLARITY ABOUT EXTERNAL WORLD ACCOMPANIED BY INTERNAL CONFLICT (WITH POSSIBLE ESTRANGEMENT FROM ONE\'S OWN FEELINGS), AND TAKING PSYCHOSIS TO BE A DISTURBANCE IN ONE\'S ABILITY TO ACQUIRE INFORMATION ABOUT THE WORLD (EITHER BECAUSE OF DELUSIONS, OR A TENDENCY TO HAVE SAME, OR OUTRIGHT HALLUCINATIONS), IS THIS PERSON EITHER NEUROTIC OR PSYCHOTIC? A MIXTURE? NEITHER?', order: 21 },
-      { id: 'ps22', question: 'ELABORATE ON ANSWER TO LAST QUESTION.', order: 22 },
-      { id: 'ps23', question: 'IF NEITHER NEUROTIC NOR PSYCHOTIC BUT STILL PSYCHOLOGICALLY IMPAIRED, EXPLAIN HOW.', order: 23 },
-      { id: 'ps24', question: 'IF IMPAIRED BUT NEITHER NEUROTIC NOR PSYCHOTIC NOR PSYCHOPATHIC, EXPLAIN HOW.', order: 24 },
-      { id: 'ps25', question: 'ANY REMAINING POINTS THAT WILL HELP COMPLETE THE CLINICAL PICTURE?', order: 25 },
-      { id: 'ps26', question: 'GENERATE A PROFILE OF THIS PERSON, INCLUDING LIKELY GENDER, AGE, PROFESSION, COGNITIVE CONFIGURATION, EMOTIONAL CONFIGURATION, PSYCHOLOGICAL STRENGTHS AND WEAKNESSES, ANY PSYCHOLOGICAL WEAKNESSES THAT ARE PSYCHOPATHOLOGICAL, AND PSYCHOLOGICAL CHARACTERISTICS THAT COULD BE MISTAKEN FOR PSYCHOPATHOLOGY (E.G. EXTREME SELF-CONFIDENCE) BUT ARE IN THIS CONTEXT FUNCTIONAL AND THEREFORE NON-PATHOLOGICAL (AND POSSIBLY EVEN COUNTER-PATHOLOGICAL).', order: 26 },
+      { id: 'ps1', question: 'Is the author\'s thought-process organized?', order: 1 },
+      { id: 'ps2', question: 'Does the author have a victim complex? Or does he take responsibility for situations and try to solve them?', order: 2 },
+      { id: 'ps3', question: 'Judging by this passage, what is the author\'s approach to life?', order: 3 },
+      { id: 'ps4', question: 'What are this person\'s greatest strengths?', order: 4 },
+      { id: 'ps5', question: 'What are this person\'s greatest weaknesses?', order: 5 },
+      { id: 'ps6', question: 'Is there evidence of outright delusion? If so, is the cause of the delusion psychotic in nature? For example, is it due to him thinking that there are gnomes living underneath his bed who control the stock market? Or is it internal conflict (e.g. due to wishful thinking or, on the contrary, to a defensive negativism that the author defensively projects onto reality)? Or, supposing that delusion is present, is it due to something more innocuous, such as "lover\'s blindness" (especially during the honeymoon phase) or to naivete?', order: 6 },
+      { id: 'ps7', question: 'What does this person likely consider to be success?', order: 7 },
+      { id: 'ps8', question: 'What does this person consider to be failure?', order: 8 },
+      { id: 'ps9', question: 'How does this person deal with adversity?', order: 9 },
+      { id: 'ps10', question: 'When this person decompensates, how does he likely do so?', order: 10 },
+      { id: 'ps11', question: 'What kind of significant other would be ideal for him?', order: 11 },
+      { id: 'ps12', question: 'What is this user\'s current emotional state — i.e. his state in writing this passage?', order: 12 },
+      { id: 'ps13', question: 'So far as we can tell from this passage, what is this user\'s general emotional state?', order: 13 },
+      { id: 'ps14', question: 'What is his likely career? And if he has a career already that is mentioned, is that career right for him?', order: 14 },
+      { id: 'ps15', question: 'What does he most detest in people?', order: 15 },
+      { id: 'ps16', question: 'What conclusions would you draw about the configuration and nature of his libido?', order: 16 },
+      { id: 'ps17', question: 'Does he have any psychiatric disorders? And if he did have — i.e. if he were to decompensate to the point where he had one — what would it be?', order: 17 },
+      { id: 'ps18', question: 'Does this person have a sense of humor?', order: 18 },
+      { id: 'ps19', question: 'What is the biggest misconception people have about the author?', order: 19 },
+      { id: 'ps20', question: 'What more than anything else stands between this person and his dreams?', order: 20 },
     ];
   }
 
