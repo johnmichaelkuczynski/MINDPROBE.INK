@@ -291,39 +291,64 @@ Text: ${text}`;
   }
 
   private getDomainScoringCalibration(analysisType: AnalysisType): string {
-    const domain = analysisType.includes('psychological') || analysisType.includes('psychopathological')
-      ? 'clinical'
-      : 'cognitive';
+    const isClinical = analysisType.includes('psychological') || analysisType.includes('psychopathological');
 
-    if (domain === 'clinical') {
-      return `CLINICAL SCORING CALIBRATION — READ THIS BEFORE SCORING:
+    if (isClinical) {
+      return `════════════════════════════════════════════════════════════════
+CLINICAL SCORING — OVERRIDE ALL OTHER SCORING INSTRUCTIONS
+════════════════════════════════════════════════════════════════
 
-The score N/100 measures the INTENSITY or SEVERITY of the clinically significant feature the question asks about. It does NOT measure "how good" the writer is. It measures how prominently the relevant clinical marker is present.
+IGNORE any prior instruction that says "N/100 means the author outperforms N% of writers" or "N/100 means the author is smarter than N% of people." That rubric is for COGNITIVE analysis only. It does NOT apply here.
 
-For questions framed as dichotomies, the score measures the pathological or clinically significant end:
-  "paranoid vs reality-based" → score = degree of paranoid ideation (not reality-testing)
-  "fragmented vs stable identity" → score = degree of fragmentation
-  "brittle defenses vs ego strength" → score = degree of brittleness
-  "full human beings vs objects/persecutors" → score = degree of objectification/persecution framing
-  "authentic engagement vs phony simulation" → score = degree of inauthenticity
+FOR CLINICAL/PSYCHOLOGICAL ANALYSIS, the score means:
 
-Score interpretation:
-  1–10   = feature essentially absent; cannot be detected
-  11–30  = faint trace; possible but not clearly present
-  31–50  = moderately present; detectable pattern
-  51–70  = clearly present; prominent feature of the text
-  71–85  = strongly present; unmistakable and consistent
-  86–95  = very strongly present; would surprise a clinician if absent
-  96–99  = textbook, maximal expression; a teaching example
+  N/100 = the author is PSYCHOLOGICALLY HEALTHIER than N% of the population
+          on the dimension being examined.
 
-DO NOT cluster scores in the 50–75 range out of diplomatic habit. If a text exhibits obvious clinical-level paranoid ideation, flagrant reality testing failures, or textbook psychotic features, the relevant scores MUST be in the 86–99 range. Giving such a text a 50 because you want to seem balanced is a clinical error, not a virtue.
+  LOW score  = severe pathology, significant dysfunction, serious clinical concern
+  HIGH score = psychological health, integration, mature functioning
 
-Quote the text directly to justify your score. Scores without quoted evidence are not acceptable.`;
+CONCRETE ANCHORS — use these to calibrate:
+
+  1–10:   Flagrant, textbook-level pathology. A teaching-case example.
+          A text with active paranoid delusions, hallucinations, or complete
+          identity fragmentation scores here on the relevant questions.
+
+  11–25:  Severe. Clinical intervention clearly warranted. Reality testing
+          significantly impaired, or defenses maximally primitive.
+
+  26–45:  Significant pathology. Clearly dysfunctional patterns.
+          Borderline-range character organization. Prominent primitive defenses.
+
+  46–60:  Mixed or neurotic. Dysfunctional patterns present but not severe.
+          Neurotic-level organization with meaningful deficits.
+
+  61–75:  Mild-to-moderate concern. Functional but with notable limitations.
+          Some neurotic traits that don't seriously impair.
+
+  76–90:  Mostly healthy. Good ego strength, reality testing intact,
+          mature defenses dominate.
+
+  91–99:  Exceptional psychological health, integration, and maturity.
+
+EXAMPLES of correct scoring for a text showing ACTIVE PARANOID PSYCHOSIS:
+  - Character organization question → 3–8/100
+  - Unreported perceptions question → 4–9/100 (flagrant, multiple instances)
+  - Malign agency question → 3–7/100
+  - Reality testing question → 2–8/100
+  - Identity stability question → 5–12/100
+
+Giving a psychotic text 75/100 on any of the above is a category error.
+It says "this person is healthier than 75% of people" — which is false.
+Do not do this. Call the pathology what it is. Score accordingly.
+
+USE THE FULL RANGE. Do not cluster in the 40–75 range out of diplomatic habit.
+Quote the text directly to justify every score.
+════════════════════════════════════════════════════════════════`;
     }
 
-    return `COGNITIVE SCORING CALIBRATION:
-
-A score of N/100 means the author outperforms N% of all writers with respect to the cognitive parameter defined by the question. Use the full range 1–99. Do not cluster in the middle. A text of genuine brilliance scores 95+; a text of genuine stupidity scores under 10. Most texts fall between 30 and 70. Use whatever the text actually deserves.`;
+    return `COGNITIVE SCORING:
+A score of N/100 means the author outperforms N% of all writers on the cognitive parameter defined by the question. Use the full range 1–99. A text of genuine brilliance scores 95+; a text of genuine stupidity scores under 10. Most texts fall between 30 and 70. Use whatever the text actually deserves.`;
   }
 
   private async *processQuestion(
@@ -357,7 +382,9 @@ A score of N/100 means the author outperforms N% of all writers with respect to 
       .filter(s => s.trim().length > 0)
       .join('\n\n');
 
-    const prompt = `${this.completeInstructions}
+    const prompt = `${scoringCalibration}
+
+${this.completeInstructions}
 
 ${contextSection ? contextSection + '\n\n' : ''}${contextPrompt}Answer this question in connection with this text: ${question.question}
 
@@ -365,9 +392,7 @@ Text: ${text}
 
 ANSWER THIS QUESTION IN CONNECTION WITH THIS TEXT.
 
-${scoringCalibration}
-
-You are not applying risk-averse, middle-of-the-road evaluation standards. You are not being diplomatic. You are not complying with institutional timidity or midwit academic norms. You call what you see, using the full scoring range, and you justify every score with direct quotations from the text.
+You are not applying risk-averse, middle-of-the-road evaluation standards. You are not being diplomatic. You call what you see, using the full scoring range, and you justify every score with direct quotations from the text.
 
 You think very hard about your answers. You do not default to cookbook protocols.
 
