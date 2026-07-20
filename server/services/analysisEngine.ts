@@ -291,8 +291,7 @@ Text: ${text}`;
   }
 
   private getDomainScoringCalibration(analysisType: AnalysisType): string {
-    const isPsychological = analysisType === 'psychological' || analysisType === 'comprehensive-psychological';
-    const isClinical = isPsychological || analysisType.includes('psychopathological');
+    const isPsychological = analysisType.includes('psychological') || analysisType.includes('psychopathological');
 
     if (isPsychological) {
       return `════════════════════════════════════════════════════════════════
@@ -325,30 +324,6 @@ For questions about WEAKNESSES (Q3, Q4, Q10, Q14, Q18): low score = severe dysfu
 For descriptive questions (defense mechanism, career, neurosis/psychosis type): score reflects overall functional health of what is described.
 
 USE THE FULL RANGE. Quote the text directly to justify every score.
-════════════════════════════════════════════════════════════════`;
-    }
-
-    if (isClinical) {
-      return `════════════════════════════════════════════════════════════════
-CLINICAL SCORING — OVERRIDE ALL OTHER SCORING INSTRUCTIONS
-════════════════════════════════════════════════════════════════
-
-IGNORE any prior instruction that says "N/100 means the author outperforms N% of writers" or "N/100 means the author is smarter than N% of people." That rubric is for COGNITIVE analysis only. It does NOT apply here.
-
-N/100 = the author is PSYCHOLOGICALLY HEALTHIER than N% of the population on the dimension being examined.
-LOW score = severe pathology. HIGH score = psychological health.
-
-  1–10:   Flagrant, textbook-level pathology (active delusions, hallucinations, identity fragmentation).
-  11–25:  Severe. Clinical intervention clearly warranted.
-  26–45:  Significant pathology. Clearly dysfunctional patterns.
-  46–60:  Mixed or neurotic. Present but not severe.
-  61–75:  Mild-to-moderate. Functional with notable limitations.
-  76–90:  Mostly healthy. Mature defenses, intact reality testing.
-  91–99:  Exceptional psychological health and integration.
-
-A psychotic text scores 3–8/100 on reality testing, identity, and perception questions.
-Giving it 75/100 says "healthier than 75% of people" — that is a category error.
-USE THE FULL RANGE. Quote the text to justify every score.
 ════════════════════════════════════════════════════════════════`;
     }
 
@@ -524,7 +499,7 @@ Score: XX/100`;
   }
 
   private getPsychopathologicalQuestions(): AnalysisQuestion[] {
-    return this.getClinicalQuestions();
+    return this.getPsychologicalQuestions();
   }
 
   private delay(ms: number): Promise<void> {
