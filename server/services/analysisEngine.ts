@@ -291,7 +291,42 @@ Text: ${text}`;
   }
 
   private getDomainScoringCalibration(analysisType: AnalysisType): string {
-    const isClinical = analysisType.includes('psychological') || analysisType.includes('psychopathological');
+    const isPsychological = analysisType === 'psychological' || analysisType === 'comprehensive-psychological';
+    const isClinical = isPsychological || analysisType.includes('psychopathological');
+
+    if (isPsychological) {
+      return `════════════════════════════════════════════════════════════════
+PSYCHOLOGICAL ANALYSIS — MANDATORY RULES AND SCORING OVERRIDE
+════════════════════════════════════════════════════════════════
+
+MANDATORY EVALUATION RULES — APPLY BEFORE ANSWERING ANY QUESTION:
+
+NUMBER ONE RULE: IF A TRAIT DOES NOT IMPAIR FUNCTIONALITY, IT IS NOT PSYCHOPATHOLOGICAL. IF IT IMPROVES FUNCTIONALITY, IT IS THE OPPOSITE OF PSYCHOPATHOLOGICAL.
+
+Do NOT use "grandiosity" as a standalone diagnostic category. Self-confidence, even extreme self-confidence ("I wrote an impeccable essay"), may be accurate and may reflect healthy ego-functioning — or even hyper-functionality. Grandiosity is only relevant if there is independent evidence that it causes a well-established dysfunction. Even then, it may be a healthy response to dysfunction rather than the cause of it. When in doubt, drop "grandiosity" as a category entirely.
+
+Do NOT use "narcissism" as a diagnostic category. It is too ambiguous — it can be either functional or dysfunctional depending on context. If the behavior is functional, it is not a pathology. If it is dysfunctional, name the dysfunction specifically without labeling it narcissism.
+
+"Psychopathy" is a useful clinical category — but only when understood independently of narcissism, and only when there is clear evidence of absence of empathy, exploitation, or cruelty that impairs the subject's ability to function in a moral or social world.
+
+SCORING OVERRIDE — IGNORE ALL OTHER SCORING INSTRUCTIONS:
+
+N/100 = the author is MORE FUNCTIONAL than N% of people on the dimension being examined.
+
+  1–10:   Severely dysfunctional. Impairs basic life tasks.
+  11–30:  Significantly dysfunctional. Causes clear problems.
+  31–50:  Moderately dysfunctional or mixed — some impairment.
+  51–70:  Mostly functional with notable limitations.
+  71–85:  Functionally strong. Minor or no impairment.
+  86–99:  Highly functional. Asset or counter-pathological.
+
+For questions about STRENGTHS (Q1, Q2, Q9, Q13, Q15-17): high score = substantial functional asset.
+For questions about WEAKNESSES (Q3, Q4, Q10, Q14, Q18): low score = severe dysfunction.
+For descriptive questions (defense mechanism, career, neurosis/psychosis type): score reflects overall functional health of what is described.
+
+USE THE FULL RANGE. Quote the text directly to justify every score.
+════════════════════════════════════════════════════════════════`;
+    }
 
     if (isClinical) {
       return `════════════════════════════════════════════════════════════════
@@ -300,50 +335,20 @@ CLINICAL SCORING — OVERRIDE ALL OTHER SCORING INSTRUCTIONS
 
 IGNORE any prior instruction that says "N/100 means the author outperforms N% of writers" or "N/100 means the author is smarter than N% of people." That rubric is for COGNITIVE analysis only. It does NOT apply here.
 
-FOR CLINICAL/PSYCHOLOGICAL ANALYSIS, the score means:
+N/100 = the author is PSYCHOLOGICALLY HEALTHIER than N% of the population on the dimension being examined.
+LOW score = severe pathology. HIGH score = psychological health.
 
-  N/100 = the author is PSYCHOLOGICALLY HEALTHIER than N% of the population
-          on the dimension being examined.
-
-  LOW score  = severe pathology, significant dysfunction, serious clinical concern
-  HIGH score = psychological health, integration, mature functioning
-
-CONCRETE ANCHORS — use these to calibrate:
-
-  1–10:   Flagrant, textbook-level pathology. A teaching-case example.
-          A text with active paranoid delusions, hallucinations, or complete
-          identity fragmentation scores here on the relevant questions.
-
-  11–25:  Severe. Clinical intervention clearly warranted. Reality testing
-          significantly impaired, or defenses maximally primitive.
-
+  1–10:   Flagrant, textbook-level pathology (active delusions, hallucinations, identity fragmentation).
+  11–25:  Severe. Clinical intervention clearly warranted.
   26–45:  Significant pathology. Clearly dysfunctional patterns.
-          Borderline-range character organization. Prominent primitive defenses.
+  46–60:  Mixed or neurotic. Present but not severe.
+  61–75:  Mild-to-moderate. Functional with notable limitations.
+  76–90:  Mostly healthy. Mature defenses, intact reality testing.
+  91–99:  Exceptional psychological health and integration.
 
-  46–60:  Mixed or neurotic. Dysfunctional patterns present but not severe.
-          Neurotic-level organization with meaningful deficits.
-
-  61–75:  Mild-to-moderate concern. Functional but with notable limitations.
-          Some neurotic traits that don't seriously impair.
-
-  76–90:  Mostly healthy. Good ego strength, reality testing intact,
-          mature defenses dominate.
-
-  91–99:  Exceptional psychological health, integration, and maturity.
-
-EXAMPLES of correct scoring for a text showing ACTIVE PARANOID PSYCHOSIS:
-  - Character organization question → 3–8/100
-  - Unreported perceptions question → 4–9/100 (flagrant, multiple instances)
-  - Malign agency question → 3–7/100
-  - Reality testing question → 2–8/100
-  - Identity stability question → 5–12/100
-
-Giving a psychotic text 75/100 on any of the above is a category error.
-It says "this person is healthier than 75% of people" — which is false.
-Do not do this. Call the pathology what it is. Score accordingly.
-
-USE THE FULL RANGE. Do not cluster in the 40–75 range out of diplomatic habit.
-Quote the text directly to justify every score.
+A psychotic text scores 3–8/100 on reality testing, identity, and perception questions.
+Giving it 75/100 says "healthier than 75% of people" — that is a category error.
+USE THE FULL RANGE. Quote the text to justify every score.
 ════════════════════════════════════════════════════════════════`;
     }
 
@@ -488,7 +493,34 @@ Score: XX/100`;
   }
 
   private getPsychologicalQuestions(): AnalysisQuestion[] {
-    return this.getClinicalQuestions();
+    return [
+      { id: 'ps1', question: 'WHAT IS THIS PERSON\'S GREATEST PSYCHOLOGICAL STRENGTH? I.E. WHAT IS THE PRIMARY RESPECT IN WHICH THIS PERSON IS FUNCTIONAL? PROVIDE EXAMPLE AND QUOTE.', order: 1 },
+      { id: 'ps2', question: 'IN WHAT OTHER WAYS IS THIS PERSON HIGHLY FUNCTIONAL? PROVIDE EXAMPLES AND QUOTES.', order: 2 },
+      { id: 'ps3', question: 'WHAT IS THIS PERSON\'S GREATEST PSYCHOLOGICAL WEAKNESS? I.E. WHAT IS THE PRIMARY RESPECT IN WHICH THIS PERSON IS DYSFUNCTIONAL? PROVIDE EXAMPLE AND QUOTE.', order: 3 },
+      { id: 'ps4', question: 'IN WHAT OTHER WAYS IS THIS PERSON HIGHLY DYSFUNCTIONAL?', order: 4 },
+      { id: 'ps5', question: 'OF THIS PERSON\'S DYSFUNCTIONALITIES, DO THEY APPEAR TO BE PERMANENT OR SPECIFIC TO A PASSING SITUATION?', order: 5 },
+      { id: 'ps6', question: 'IF ENDURING, HOW ARE THEY CURRENTLY PRESENTING?', order: 6 },
+      { id: 'ps7', question: 'WHAT IS THIS PERSON\'S PRIMARY DEFENSE MECHANISM?', order: 7 },
+      { id: 'ps8', question: 'IS IT FUNCTIONAL OR DYSFUNCTIONAL IN THIS CONTEXT?', order: 8 },
+      { id: 'ps9', question: 'IF FUNCTIONAL, EXPLAIN HOW.', order: 9 },
+      { id: 'ps10', question: 'IF DYSFUNCTIONAL, EXPLAIN HOW.', order: 10 },
+      { id: 'ps11', question: 'WHAT OTHER DEFENSE MECHANISMS ARE PRESENT?', order: 11 },
+      { id: 'ps12', question: 'ARE THEY FUNCTIONAL OR DYSFUNCTIONAL IN THIS CONTEXT?', order: 12 },
+      { id: 'ps13', question: 'IF FUNCTIONAL, EXPLAIN HOW.', order: 13 },
+      { id: 'ps14', question: 'IF DYSFUNCTIONAL, EXPLAIN HOW.', order: 14 },
+      { id: 'ps15', question: 'DOES THE PERSON HAVE A STRONG SENSE OF SELF? OR IS THAT PERSON DEPENDENT ON OTHERS FOR A SENSE OF IDENTITY?', order: 15 },
+      { id: 'ps16', question: 'WHAT CAREER DOES THIS PERSON LIKELY HAVE? IF NOT ENOUGH INFORMATION, FOR WHAT CAREER, IF ANY, DOES THIS PERSON\'S CHARACTER-TRAITS (INCLUDING DEFENSES) MAKE THEM SUITABLE?', order: 16 },
+      { id: 'ps17', question: 'HOW DOES THIS PERSON APPEAR TO COMPENSATE (I.E. FUNCTIONALLY ADAPT TO ADVERSITY)?', order: 17 },
+      { id: 'ps18', question: 'HOW DOES THIS PERSON APPEAR TO DECOMPENSATE (I.E. DYSFUNCTIONALLY ADAPT TO ADVERSITY)?', order: 18 },
+      { id: 'ps19', question: 'WITH REGARD TO THIS PERSON\'S DYSFUNCTIONAL DEFENSES AND OTHER SYMPTOMS, DO THEY PRIMARILY INVOLVE INTERNAL CONFLICT? OR DO THEY PRIMARILY INVOLVE ALIENATION, ON AN EPISTEMIC (KNOWLEDGE-RELATED) LEVEL, FROM THE EXTERNAL WORLD?', order: 19 },
+      { id: 'ps20', question: 'ELABORATE ON RESPONSE TO LAST QUESTION.', order: 20 },
+      { id: 'ps21', question: 'TAKING NEUROSIS TO BE CLARITY ABOUT EXTERNAL WORLD ACCOMPANIED BY INTERNAL CONFLICT (WITH POSSIBLE ESTRANGEMENT FROM ONE\'S OWN FEELINGS), AND TAKING PSYCHOSIS TO BE A DISTURBANCE IN ONE\'S ABILITY TO ACQUIRE INFORMATION ABOUT THE WORLD (EITHER BECAUSE OF DELUSIONS, OR A TENDENCY TO HAVE SAME, OR OUTRIGHT HALLUCINATIONS), IS THIS PERSON EITHER NEUROTIC OR PSYCHOTIC? A MIXTURE? NEITHER?', order: 21 },
+      { id: 'ps22', question: 'ELABORATE ON ANSWER TO LAST QUESTION.', order: 22 },
+      { id: 'ps23', question: 'IF NEITHER NEUROTIC NOR PSYCHOTIC BUT STILL PSYCHOLOGICALLY IMPAIRED, EXPLAIN HOW.', order: 23 },
+      { id: 'ps24', question: 'IF IMPAIRED BUT NEITHER NEUROTIC NOR PSYCHOTIC NOR PSYCHOPATHIC, EXPLAIN HOW.', order: 24 },
+      { id: 'ps25', question: 'ANY REMAINING POINTS THAT WILL HELP COMPLETE THE CLINICAL PICTURE?', order: 25 },
+      { id: 'ps26', question: 'GENERATE A PROFILE OF THIS PERSON, INCLUDING LIKELY GENDER, AGE, PROFESSION, COGNITIVE CONFIGURATION, EMOTIONAL CONFIGURATION, PSYCHOLOGICAL STRENGTHS AND WEAKNESSES, ANY PSYCHOLOGICAL WEAKNESSES THAT ARE PSYCHOPATHOLOGICAL, AND PSYCHOLOGICAL CHARACTERISTICS THAT COULD BE MISTAKEN FOR PSYCHOPATHOLOGY (E.G. EXTREME SELF-CONFIDENCE) BUT ARE IN THIS CONTEXT FUNCTIONAL AND THEREFORE NON-PATHOLOGICAL (AND POSSIBLY EVEN COUNTER-PATHOLOGICAL).', order: 26 },
+    ];
   }
 
   private getPsychopathologicalQuestions(): AnalysisQuestion[] {
