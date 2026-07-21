@@ -178,11 +178,11 @@ export function RealTimeResults({ analysisId, isStreaming }: RealTimeResultsProp
         const trimmedLine = line.trim();
 
         // Cognitive fingerprint score lines — Theoretical Power / Demonstrative Execution / Final Intelligence Score
-        const scoreMatch = trimmedLine.match(/^(Theoretical Power|Demonstrative Execution|Final Intelligence Score):\s*(\d+)\/100/);
+        const scoreMatch = trimmedLine.match(/^(Theoretical Power|Demonstrative Execution|Final Intelligence Score|Final Score):\s*(\d+)\/100/);
         if (scoreMatch) {
           const label = scoreMatch[1];
           const score = parseInt(scoreMatch[2]);
-          const isFinal = label === 'Final Intelligence Score';
+          const isFinal = label === 'Final Intelligence Score' || label === 'Final Score';
           const scoreColor = score >= 90 ? 'text-green-600' : score >= 70 ? 'text-yellow-600' : 'text-red-600';
           return (
             <div key={index} className={`mt-2 p-3 rounded-lg border-l-4 ${isFinal ? 'bg-blue-50 border-blue-500 mt-4' : 'bg-gray-50 border-gray-300'}`}>
