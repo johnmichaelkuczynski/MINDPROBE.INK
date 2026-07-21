@@ -477,8 +477,9 @@ END OF PROTOCOL — NOW APPLY IT TO THE TEXT BELOW
     const contextPrompt = additionalContext ? `Additional context: ${additionalContext}\n\n` : '';
 
     const isCognitive = analysisType.includes('cognitive');
+    const isFingerprintVerdict = question.id === 'fp-verdict';
 
-    const lengthInstruction = isCognitive
+    const lengthInstruction = isFingerprintVerdict
       ? `RESPONSE LENGTH: Follow the mandatory output format exactly — Theoretical Power, Demonstrative Execution, Final Intelligence Score, Fingerprint Sentences, Analysis (120–180 words), Cognitive Characteristics. Do not truncate any field.`
       : verbosity === 'micro'
         ? `RESPONSE LENGTH: One sentence — two at the absolute most. State your verdict and the score. Nothing else.`
@@ -500,13 +501,13 @@ END OF PROTOCOL — NOW APPLY IT TO THE TEXT BELOW
 
     const isDescriptive = analysisType.includes('psychological') || analysisType.includes('psychopathological');
 
-    const responseStructure = isCognitive
+    const responseStructure = isFingerprintVerdict
       ? `Use the MANDATORY OUTPUT FORMAT from the protocol above. No deviations. No markdown headers. No asterisks.`
       : isDescriptive
         ? `Structure your response as:
 [Your analysis with specific quotations and reasoning — direct, unvarnished, no hedging, no blandishments, no reflective-listening language. State exactly what you see and justify it with evidence from the text.]`
         : `Structure your response as:
-[Your analysis with specific quotations and reasoning]
+[Your analysis with specific quotations and reasoning — apply the fingerprint/carapace framework from the protocol above to this specific dimension]
 
 Score: XX/100`;
 
@@ -568,11 +569,25 @@ ${responseStructure}`;
 
   private getCognitiveQuestions(): AnalysisQuestion[] {
     return [
-      {
-        id: 'cog1',
-        question: 'Apply the full theoretical intelligence fingerprint analysis to this text. Produce the mandatory output format exactly as specified in the protocol above.',
-        order: 1,
-      },
+      { id: '1',  question: 'Is it insightful? Does it say things that non-obvious and genuinely load-bearing — things that change what was thinkable before being said? Or does it recycle accepted positions in acceptable vocabulary?', order: 1 },
+      { id: '2',  question: 'Does it develop points? Is the development epistemic (each step earns the next by force of logic or evidence) or merely expository (each step follows by sequence, not by entailment)? If it is a short excerpt, is there structural evidence it could develop epistemically if extended?', order: 2 },
+      { id: '3',  question: 'Is the organization merely sequential — one point after another with little or no logical scaffolding? Or are the ideas arranged hierarchically, so that some ideas govern others and the whole is shaped by a controlling concept rather than by a narrative arc?', order: 3 },
+      { id: '4',  question: 'Where the points are not novel, does the author operate skillfully with the canons of logic and reasoning — i.e. does he use the existing materials correctly, tightly, and without fallacy? Or does he mistake logical adjacency for entailment?', order: 4 },
+      { id: '5',  question: 'Are the points clichés? Or are they "fresh" — arriving at their subject from an unexpected angle, carving the domain at joints the reader had not previously noticed? Be specific: quote the most and least fresh formulations.', order: 5 },
+      { id: '6',  question: 'Does it use technical jargon to obfuscate or to render more precise? Distinguish cases where the technical term does real work (it names something the plain-language paraphrase loses) from cases where it substitutes for thinking. Quote specific examples either way.', order: 6 },
+      { id: '7',  question: 'Is the writing organic? Do ideas unfold as though they could not have been otherwise ordered — each one calling the next into existence? Or are they forced and artificial, assembled rather than grown? Look for the difference between a logical consequence and a rhetorical transition.', order: 7 },
+      { id: '8',  question: 'Does the text open up new domains of inquiry? Does it generate questions that were not askable before you read it? Or does it shut off inquiry — by conditioning further discussion on the acceptance of its own possibly faulty premises, or by exhausting the subject with definitional moves that only appear to settle it?', order: 8 },
+      { id: '9',  question: 'Is this text actually intelligent, or is it the work of someone who, by virtue of subject matter or institutional affiliation, is presumed to be intelligent? In other words: if you strip the text of its topic (philosophy, law, medicine, etc.) and its citations, does any non-obvious thought remain?', order: 9 },
+      { id: '10', question: 'Is it real or phony? Distinguish genuine intellectual engagement from carapace display — the performance of intelligence without its substance. Look for: promissory scaffolding, distinctions that do only terminological work, verbal sophistication in the service of zero theoretical gain, contradictions between body and conclusion that the author does not notice.', order: 10 },
+      { id: '11', question: 'Do the sentences exhibit complex and coherent internal logic? Are they doing real work — compressing a genuine relationship between concepts — or are they syntactically elaborate with no corresponding semantic payoff?', order: 11 },
+      { id: '12', question: 'Is the passage governed by a strong concept — a single, generative idea that shapes and constrains everything else? Or is the organization driven purely by expository norms (intro → literature → argument → conclusion) with no governing epistemic principle?', order: 12 },
+      { id: '13', question: 'Is there system-level control over ideas? Does the author demonstrably recall what he said earlier and integrate it with subsequent points — so that the text functions as a coherent architecture rather than a sequence of locally competent paragraphs?', order: 13 },
+      { id: '14', question: 'Are the points "real" and fresh — originating from the author\'s own encounter with the problem? Or is the author acting as a mouthpiece for an institution, a tradition, an orthodoxy, or a propaganda vein — rephrasing accepted positions as though they were insights?', order: 14 },
+      { id: '15', question: 'Is the writing evasive or direct? Does the author say what he means in the fewest words that retain full precision? Or does he hedge, qualify, meander, and retreat into imprecision whenever a clear statement would commit him to something?', order: 15 },
+      { id: '16', question: 'Are the statements genuinely ambiguous — conveying two things at once by design — or are they merely vague, conveying nothing precisely? Distinguish productive ambiguity (where both readings are true and their conjunction says something) from protective vagueness (a flight from commitment).', order: 16 },
+      { id: '17', question: 'Does the progression of the text follow epistemic order (what entails what, what confirms what, what follows from what) or social order (who said what, what the literature says, what committee members expect)? The first is intelligence; the second is learned behavior.', order: 17 },
+      { id: '18', question: 'Does the author use other authors to develop his own ideas — as tools that help him cut deeper into the problem — or to cloak his own lack of ideas, substituting citation density for original thought? Quote specific instances of each if present.', order: 18 },
+      { id: 'fp-verdict', question: 'Now produce the full fingerprint verdict using the mandatory output format specified at the top of the protocol. Apply the hard rules: if there is even one re-organizing cut, Theoretical Power floor = 90; Genre C (promissory overview) ceiling = 45. Calculate Final Intelligence Score = (0.75 × Theoretical Power) + (0.25 × Demonstrative Execution).', order: 19 },
     ];
   }
 
