@@ -12,9 +12,9 @@ const baseDomains = [
   {
     domain: "Cognitive",
     types: [
-      { id: 'micro-cognitive' as AnalysisType, title: 'Micro Cognitive', description: 'All 18 questions, razor-sharp answers', icon: Zap, badge: 'micro' },
-      { id: 'cognitive' as AnalysisType, title: 'Cognitive', description: 'Basic cognitive assessment with core intelligence metrics', icon: Lightbulb, badge: null },
-      { id: 'comprehensive-cognitive' as AnalysisType, title: 'Comprehensive Cognitive', description: 'Full cognitive analysis with exhaustive depth', icon: Brain, badge: 'full' },
+      { id: 'micro-cognitive' as AnalysisType, title: 'Micro Cognitive', description: 'Fingerprint detection — rapid single-pass verdict', icon: Zap, badge: 'micro' },
+      { id: 'cognitive' as AnalysisType, title: 'Cognitive', description: 'Fingerprint detection — load-bearing cuts, generative power, lethality', icon: Lightbulb, badge: null },
+      { id: 'comprehensive-cognitive' as AnalysisType, title: 'Comprehensive Cognitive', description: 'Full fingerprint analysis with maximum analytical depth', icon: Brain, badge: 'full' },
     ],
   },
   {

@@ -398,8 +398,69 @@ END OF EXAMPLES — NOW ANALYZE THE ACTUAL TEXT BELOW
 ════════════════════════════════════════════════════════════════`;
     }
 
-    return `COGNITIVE SCORING:
-A score of N/100 means the author outperforms N% of all writers on the cognitive parameter defined by the question. Use the full range 1–99. A text of genuine brilliance scores 95+; a text of genuine stupidity scores under 10. Most texts fall between 30 and 70. Use whatever the text actually deserves.`;
+    return `════════════════════════════════════════════════════════════════
+COGNITIVE ANALYSIS — FINGERPRINT DETECTION PROTOCOL
+════════════════════════════════════════════════════════════════
+
+You are not a grader of academic papers. You are a detector of genuine theoretical intelligence.
+
+Your sole job is to determine whether the author has the rare capacity to make a NON-OBVIOUS, LOAD-BEARING CUT that re-organizes a domain, absorbs the hardest objections, and generates high-stakes consequences with extreme compression.
+
+IGNORE — these are the carapace; they are irrelevant or negatively correlated with the fingerprint you must detect:
+- Length
+- Literature references
+- "Development" or "unfolding"
+- Step-by-step exegesis
+- Academic polish
+- How well it would satisfy a dissertation committee
+
+THE FINGERPRINT — score this and only this:
+
+Positive markers (reward ruthlessly):
+- A simple-seeming identity or distinction that immediately changes what is thinkable in the domain
+- Immediate absorption of the strongest counter-example without hedging or epicycles
+- High generative leverage: multiple strong, non-obvious consequences fall out cheaply
+- Clean lethality to nearby popular or tempting false views
+- Extreme compression with zero loss of precision
+- Meta-level control: sees how defenders will over-extend terms or retreat to causal roles, and kills those moves in advance
+
+Negative markers (penalize hard):
+- Promissory scaffolding ("I will argue…", "This dissertation examines…", "This paper will show…")
+- Distinctions that do only terminological work
+- Additive complexity instead of re-organizing simplicity
+- Contradiction between the body and the conclusion
+- Verbal sophistication in the service of small or zero theoretical gain
+- Treating causal role, "practices", or over-extended "symbols" as content-determining
+
+SCORING FORMULA:
+Theoretical Power (0–100): How strongly the fingerprint is present. This is 75% of the final score.
+Demonstrative Execution (0–100): How fully the moves are shown in this specific text. For high-compression abstracts, 65–80 is excellent — do not punish compression.
+Final Intelligence Score = (0.75 × Theoretical Power) + (0.25 × Demonstrative Execution)
+
+HARD RULES:
+- If the text contains even one sentence that functions as a genuine re-organizing cut, Theoretical Power floor = 90.
+- Genre A (high-compression theoretical abstract) is the natural home of the fingerprint. Do NOT punish it for being short.
+- Genre C (promissory dissertation overview) has Theoretical Power ceiling = 45.
+
+EXAMPLES OF THE FINGERPRINT — internalize these as your calibration standard:
+• "Laws are governmental assurances of protections of rights."
+• "Sense-perceptions do not have to be deciphered in order for their contents to be uploaded, because they are presentations, not representations."
+• "It is viciously regressive to suppose that information-bearing mental entities are categorically in the nature of representations, and it is therefore incoherent to suppose that thought is mediated by linguistic entities."
+• "The essence of neurosis is the inability to tolerate ambiguity."
+• "Ontology recapitulates phylogeny."
+
+MANDATORY OUTPUT FORMAT — use exactly this structure, no deviations:
+
+Theoretical Power: XX/100
+Demonstrative Execution: XX/100
+Final Intelligence Score: XX/100
+Fingerprint Sentences: [Quote the 1–3 sentences from the text that carry the re-organizing cut, if present. If none are present, write "None detected."]
+Analysis: [120–180 words, direct. Say whether the fingerprint is present and how strong it is. Identify the specific cut or its absence. Never use "promissory," "limited development," "not fully unfolded," or "lacks detailed examples" as criticisms of short or compressed texts.]
+Cognitive Characteristics: [Comma-separated tags, e.g.: re-organizing cut, generative compression, pre-emptive lethality, system-level control, carapace-dominant, promissory scaffolding, terminological only]
+
+════════════════════════════════════════════════════════════════
+END OF PROTOCOL — NOW APPLY IT TO THE TEXT BELOW
+════════════════════════════════════════════════════════════════`;
   }
 
   private async *processQuestion(
@@ -415,11 +476,15 @@ A score of N/100 means the author outperforms N% of all writers on the cognitive
   ): AsyncGenerator<{ type: 'question'; data: any }> {
     const contextPrompt = additionalContext ? `Additional context: ${additionalContext}\n\n` : '';
 
-    const lengthInstruction = verbosity === 'micro'
-      ? `RESPONSE LENGTH: One sentence — two at the absolute most. State your verdict and the score. Nothing else.`
-      : verbosity === 'comprehensive'
-        ? `RESPONSE LENGTH: Write two or more full paragraphs. Include at least one direct illustrative quote from the text in each paragraph. Explore every dimension of the question thoroughly. Do not truncate.`
-        : `RESPONSE LENGTH: One focused paragraph. Include at least one direct illustrative quote from the text to support your assessment.`;
+    const isCognitive = analysisType.includes('cognitive');
+
+    const lengthInstruction = isCognitive
+      ? `RESPONSE LENGTH: Follow the mandatory output format exactly — Theoretical Power, Demonstrative Execution, Final Intelligence Score, Fingerprint Sentences, Analysis (120–180 words), Cognitive Characteristics. Do not truncate any field.`
+      : verbosity === 'micro'
+        ? `RESPONSE LENGTH: One sentence — two at the absolute most. State your verdict and the score. Nothing else.`
+        : verbosity === 'comprehensive'
+          ? `RESPONSE LENGTH: Write two or more full paragraphs. Include at least one direct illustrative quote from the text in each paragraph. Explore every dimension of the question thoroughly. Do not truncate.`
+          : `RESPONSE LENGTH: One focused paragraph. Include at least one direct illustrative quote from the text to support your assessment.`;
 
     const skeletonBlock = this.formatSkeletonBlock(skeleton);
     const ledgerBlock = this.formatLedgerBlock(ledger);
@@ -435,15 +500,17 @@ A score of N/100 means the author outperforms N% of all writers on the cognitive
 
     const isDescriptive = analysisType.includes('psychological') || analysisType.includes('psychopathological');
 
-    const responseStructure = isDescriptive
-      ? `Structure your response as:
+    const responseStructure = isCognitive
+      ? `Use the MANDATORY OUTPUT FORMAT from the protocol above. No deviations. No markdown headers. No asterisks.`
+      : isDescriptive
+        ? `Structure your response as:
 [Your analysis with specific quotations and reasoning — direct, unvarnished, no hedging, no blandishments, no reflective-listening language. State exactly what you see and justify it with evidence from the text.]`
-      : `Structure your response as:
+        : `Structure your response as:
 [Your analysis with specific quotations and reasoning]
 
 Score: XX/100`;
 
-    const dbReferenceBlock = isDescriptive
+    const dbReferenceBlock = (isDescriptive || isCognitive)
       ? await getPromptReferenceBlock(analysisType, question.id)
       : '';
 
@@ -501,24 +568,11 @@ ${responseStructure}`;
 
   private getCognitiveQuestions(): AnalysisQuestion[] {
     return [
-      { id: '1', question: 'Is it insightful?', order: 1 },
-      { id: '2', question: 'Does it develop points? (Or, if it is a short excerpt, is there evidence that it would develop points if extended)?', order: 2 },
-      { id: '3', question: 'Is the organization merely sequential (just one point after another, little or no logical scaffolding)? Or are the ideas arranged, not just sequentially but hierarchically?', order: 3 },
-      { id: '4', question: 'If the points it makes are not insightful, does it operate skillfully with canons of logic/reasoning?', order: 4 },
-      { id: '5', question: 'Are the points cliches? Or are they "fresh"?', order: 5 },
-      { id: '6', question: 'Does it use technical jargon to obfuscate or to render more precise?', order: 6 },
-      { id: '7', question: 'Is it organic? Do points develop in an organic, natural way? Do they "unfold"? Or are they forced and artificial?', order: 7 },
-      { id: '8', question: 'Does it open up new domains? Or, on the contrary, does it shut off inquiry (by conditionalizing further discussion of the matters on acceptance of its internal and possibly very faulty logic)?', order: 8 },
-      { id: '9', question: 'Is it actually intelligent or just the work of somebody who, judging by the subject-matter, is presumed to be intelligent (but may not be)?', order: 9 },
-      { id: '10', question: 'Is it real or is it phony?', order: 10 },
-      { id: '11', question: 'Do the sentences exhibit complex and coherent internal logic?', order: 11 },
-      { id: '12', question: 'Is the passage governed by a strong concept? Or is the only organization driven purely by expository (as opposed to epistemic) norms?', order: 12 },
-      { id: '13', question: 'Is there system-level control over ideas? In other words, does the author seem to recall what he said earlier and to be in a position to integrate it into points he has made since then?', order: 13 },
-      { id: '14', question: 'Are the points "real"? Are they fresh? Or is some institution or some accepted vein of propaganda or orthodoxy just using the author as a mouth piece?', order: 14 },
-      { id: '15', question: 'Is the writing evasive or direct?', order: 15 },
-      { id: '16', question: 'Are the statements ambiguous?', order: 16 },
-      { id: '17', question: 'Does the progression of the text develop according to who said what or according to what entails or confirms what?', order: 17 },
-      { id: '18', question: 'Does the author use other authors to develop his ideas or to cloak his own lack of ideas?', order: 18 },
+      {
+        id: 'cog1',
+        question: 'Apply the full theoretical intelligence fingerprint analysis to this text. Produce the mandatory output format exactly as specified in the protocol above.',
+        order: 1,
+      },
     ];
   }
 

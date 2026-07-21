@@ -157,6 +157,8 @@ export function RealTimeResults({ analysisId, isStreaming }: RealTimeResultsProp
     }
   };
 
+  const FINGERPRINT_FIELDS = ['Theoretical Power', 'Demonstrative Execution', 'Final Intelligence Score', 'Fingerprint Sentences', 'Analysis', 'Cognitive Characteristics'];
+
   const formatContent = (content: string) => {
     const cleanContent = content
       .replace(/\*\*([^*]+)\*\*/g, '$1')
@@ -173,30 +175,77 @@ export function RealTimeResults({ analysisId, isStreaming }: RealTimeResultsProp
     return cleanContent
       .split('\n')
       .map((line, index) => {
-        const scoreMatch = line.match(/(\d+\/100)/);
+        const trimmedLine = line.trim();
+
+        // Cognitive fingerprint score lines — Theoretical Power / Demonstrative Execution / Final Intelligence Score
+        const scoreMatch = trimmedLine.match(/^(Theoretical Power|Demonstrative Execution|Final Intelligence Score):\s*(\d+)\/100/);
         if (scoreMatch) {
-          const score = parseInt(scoreMatch[1].split('/')[0]);
+          const label = scoreMatch[1];
+          const score = parseInt(scoreMatch[2]);
+          const isFinal = label === 'Final Intelligence Score';
           const scoreColor = score >= 90 ? 'text-green-600' : score >= 70 ? 'text-yellow-600' : 'text-red-600';
-          
           return (
-            <div key={index} className="mt-3 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+            <div key={index} className={`mt-2 p-3 rounded-lg border-l-4 ${isFinal ? 'bg-blue-50 border-blue-500 mt-4' : 'bg-gray-50 border-gray-300'}`}>
               <div className="flex items-center justify-between">
-                <span className="text-gray-700 flex-1">{line.replace(scoreMatch[0], '').trim()}</span>
-                <span className={`font-bold text-2xl ${scoreColor} ml-4`}>
-                  {scoreMatch[0]}
-                </span>
+                <span className={`${isFinal ? 'font-bold text-gray-800' : 'text-gray-600'} flex-1 text-sm`}>{label}</span>
+                <span className={`font-bold ${isFinal ? 'text-3xl' : 'text-xl'} ${scoreColor} ml-4`}>{score}/100</span>
               </div>
             </div>
           );
         }
-        else if (line.startsWith('"') && line.endsWith('"')) {
+
+        // Cognitive fingerprint labeled fields
+        const fieldMatch = trimmedLine.match(/^(Fingerprint Sentences|Cognitive Characteristics):\s*(.*)/s);
+        if (fieldMatch) {
+          const fieldLabel = fieldMatch[1];
+          const fieldValue = fieldMatch[2].trim();
+          const isFingerprint = fieldLabel === 'Fingerprint Sentences';
+          return (
+            <div key={index} className={`mt-4 p-3 rounded-lg border ${isFingerprint ? 'border-indigo-200 bg-indigo-50' : 'border-gray-200 bg-gray-50'}`}>
+              <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${isFingerprint ? 'text-indigo-600' : 'text-gray-500'}`}>{fieldLabel}</p>
+              {isFingerprint && fieldValue !== 'None detected.' ? (
+                <blockquote className="border-l-4 border-indigo-400 pl-3 italic text-indigo-800 text-sm">{fieldValue}</blockquote>
+              ) : (
+                <p className="text-sm text-gray-700">{fieldValue || 'None detected.'}</p>
+              )}
+            </div>
+          );
+        }
+
+        // Analysis: field (multi-line, just strip label and show)
+        if (trimmedLine.startsWith('Analysis:')) {
+          const value = trimmedLine.slice('Analysis:'.length).trim();
+          return (
+            <div key={index} className="mt-4">
+              <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-1">Analysis</p>
+              <p className="text-gray-700 leading-relaxed text-sm">{value}</p>
+            </div>
+          );
+        }
+
+        // Standard score line (legacy single-score format)
+        const legacyScoreMatch = trimmedLine.match(/^(.*)(\d+\/100)(.*)$/);
+        if (legacyScoreMatch && !FINGERPRINT_FIELDS.some(f => trimmedLine.startsWith(f))) {
+          const score = parseInt(legacyScoreMatch[2].split('/')[0]);
+          const scoreColor = score >= 90 ? 'text-green-600' : score >= 70 ? 'text-yellow-600' : 'text-red-600';
+          return (
+            <div key={index} className="mt-3 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
+              <div className="flex items-center justify-between">
+                <span className="text-gray-700 flex-1">{trimmedLine.replace(legacyScoreMatch[2], '').trim()}</span>
+                <span className={`font-bold text-2xl ${scoreColor} ml-4`}>{legacyScoreMatch[2]}</span>
+              </div>
+            </div>
+          );
+        }
+
+        if (trimmedLine.startsWith('"') && trimmedLine.endsWith('"')) {
           return (
             <blockquote key={index} className="border-l-4 border-gray-300 pl-4 my-3 italic text-gray-600">
-              {line}
+              {trimmedLine}
             </blockquote>
           );
         }
-        else if (line.trim()) {
+        else if (trimmedLine) {
           return <p key={index} className="text-gray-700 mb-2 leading-relaxed">{line}</p>;
         }
         else {

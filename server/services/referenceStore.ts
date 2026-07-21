@@ -141,6 +141,87 @@ const BAD_EXAMPLES: Array<{ questionId: string; label: string; content: string; 
   }
 ];
 
+const COGNITIVE_SEED_MARKER = 'SEED_V1_COGNITIVE_FINGERPRINT';
+
+const COGNITIVE_FINGERPRINT_EXAMPLES = [
+  {
+    label: 'Laws are governmental assurances of protections of rights.',
+    content: `Laws are governmental assurances of protections of rights. This sentence is the entire theory in eight words. Once you see it, everything else in the paper is inevitable. It functions as a genuine re-organizing cut: it immediately changes what counts as a legal fact, absorbs the hardest counter-example (immoral laws), and generates three high-stakes theorems directly (Are there international laws? Could they exist? Would they be desirable? — "No", "Yes", "No"). It simultaneously kills the two opposite vulgarities: the cynical view that legal interpretation is mere legislation, and Blackstone's childish fiction that judges merely discover the law.`,
+    notes: 'From the Law abstract. Paradigm fingerprint sentence — highest Theoretical Power. Genre A (high-compression theoretical abstract).'
+  },
+  {
+    label: 'Sense-perceptions do not have to be deciphered because they are presentations, not representations.',
+    content: `Sense-perceptions do not have to be deciphered in order for their contents to be uploaded, the reason being that they are presentations, not representations. This is the decisive cut. Everything else follows. It is NOT a terminological distinction — it immediately renders incoherent the entire regress structure of representationalist theories of mind. It has meta-level control built in: the author sees in advance how defenders will over-extend "symbol" and "causal role" as content-determining, and kills those escape routes pre-emptively.`,
+    notes: 'From the Presentation/Representation abstract. Paradigm fingerprint sentence — Theoretical Power floor 90+.'
+  },
+  {
+    label: 'It is viciously regressive to suppose that information-bearing mental entities are categorically representations.',
+    content: `It is viciously regressive to suppose that information-bearing mental entities are categorically in the nature of representations, as opposed to presentations, and it is therefore incoherent to suppose that thought is mediated by expressions or, therefore, by linguistic entities. This sentence combines the regress argument with the lethality conclusion in maximum compression. The word "viciously" is not rhetorical — it names the logical structure (infinite regress, not merely a flaw). "It is therefore incoherent" is the kill move: not "problematic" or "questionable" — incoherent.`,
+    notes: 'From the Presentation/Representation abstract. Shows how to absorb the hardest counter-example in one compressed stroke without hedging or epicycles.'
+  },
+  {
+    label: 'The essence of neurosis is the inability to tolerate ambiguity.',
+    content: `The essence of neurosis is the inability to tolerate ambiguity. Classic Fingerprint sentence — one clause, reorganizes a huge clinical domain. Immediately: rituals, dogmatism, splitting, intellectualization, perfectionism, compulsive certainty-seeking — all become instances of one structural failure. The load-bearing cut is the word "essence": not a symptom, not a feature, not a correlate — the structural root. High generative leverage: from this, the treatment logic (increasing tolerance of ambiguity) and the diagnostic logic (look for ambiguity-reduction maneuvers) fall out cheaply.`,
+    notes: 'Classic example of fingerprint intelligence. Works on a single sentence. Should score Theoretical Power 95+.'
+  },
+  {
+    label: 'Ontology recapitulates phylogeny.',
+    content: `Ontology recapitulates phylogeny. A single compressed claim that forces a re-reading of both developmental psychology and metaphysics simultaneously. What makes it fingerprint-class: (1) it re-carves the subject-matter — developmental sequence is now metaphysical sequence; (2) it generates consequences cheaply across two domains; (3) it has extreme compression with zero loss of precision; (4) it cannot be paraphrased into 20 pages without adding only pedagogy, not insight.`,
+    notes: 'Classic example. Shows that fingerprint intelligence can appear in five words. Relevant to compression-not-development evaluation.'
+  },
+  {
+    label: 'CARAPACE EXAMPLE: Promissory dissertation overview (Theoretical Power ceiling 45)',
+    content: `This dissertation examines the relationship between consciousness and intentionality through a close reading of Husserl's phenomenological framework. Drawing on recent work in analytic philosophy of mind, I argue that the standard interpretation of Husserlian intentionality is inadequate and that a more nuanced reading reveals important resources for contemporary debates. The thesis proceeds in four chapters: Chapter 1 surveys the existing literature; Chapter 2 reconstructs Husserl's account; Chapter 3 addresses objections; Chapter 4 draws conclusions for current debates in the philosophy of mind. I conclude that Husserl offers a distinctive and underappreciated contribution to our understanding of intentional consciousness.`,
+    notes: 'WRONG: This is Genre C — promissory dissertation overview. Markers: "This dissertation examines", "I argue that", "the thesis proceeds in four chapters", "I conclude that". Zero re-organizing cuts. Zero generative leverage. Additive complexity. Verbal sophistication in the service of zero theoretical gain. Theoretical Power ceiling = 45 regardless of subject matter.'
+  },
+];
+
+async function seedCognitiveExamples(): Promise<void> {
+  try {
+    const existing = await storage.getReferenceExamples('cognitive', 'seed_marker');
+    if (existing.some(e => e.label === COGNITIVE_SEED_MARKER)) return;
+
+    await storage.addReferenceExample({
+      analysisType: 'cognitive',
+      exampleType: 'seed_marker',
+      label: COGNITIVE_SEED_MARKER,
+      content: 'Cognitive fingerprint seed marker — do not delete',
+    });
+
+    await storage.addReferenceExample({
+      analysisType: 'cognitive',
+      exampleType: 'protocol_rule',
+      label: 'Fingerprint vs Carapace — core distinction',
+      content: `THE FINGERPRINT: A non-obvious load-bearing cut that immediately re-organizes a domain. It changes what counts as information. It absorbs the hardest counter-examples without epicycles. Multiple strong consequences fall out cheaply. It destroys nearby popular false views as a side-effect. It is fully present in compressed form — expanding it adds only pedagogy, not insight.
+
+THE CARAPACE: Ritual display of familiarity with a literature. Promissory structure ("I will argue...", "This paper examines..."). Distinctions that do only terminological work. Additive complexity instead of re-organizing simplicity. Verbal sophistication in the service of small or zero theoretical gain. High contradiction tolerance at the architectural level.
+
+THE FOUR DIAGNOSTIC QUESTIONS (apply in order to any unit of text):
+1. Does this force a re-carving of the subject-matter, or merely rearrange existing furniture?
+2. What previously unavailable consequences now become cheap? (If none, or only terminological ones → carapace)
+3. What popular or tempting positions does this immediately render incoherent or empty? (Real intelligence is lethal to something nearby)
+4. If stripped of all citations, all hedging, all literature placement — would any non-obvious thought remain? (Yes → fingerprint; No → carapace)`,
+      notes: 'From Grok exchange. Core calibration rule for all cognitive analyses.',
+    });
+
+    for (const ex of COGNITIVE_FINGERPRINT_EXAMPLES) {
+      const isCarapace = ex.label.startsWith('CARAPACE');
+      await storage.addReferenceExample({
+        analysisType: 'cognitive',
+        exampleType: isCarapace ? 'bad_answer' : 'good_answer',
+        questionId: 'cog1',
+        label: ex.label,
+        content: ex.content,
+        notes: ex.notes,
+      });
+    }
+
+    console.log('[ReferenceStore] Seeded cognitive fingerprint examples');
+  } catch (err) {
+    console.error('[ReferenceStore] Cognitive seed failed:', err);
+  }
+}
+
 let seeded = false;
 
 export async function seedReferenceExamples(): Promise<void> {
@@ -191,6 +272,7 @@ export async function seedReferenceExamples(): Promise<void> {
 
     seeded = true;
     console.log('[ReferenceStore] Seeded psychological reference examples');
+    await seedCognitiveExamples();
   } catch (err) {
     console.error('[ReferenceStore] Seed failed:', err);
   }
