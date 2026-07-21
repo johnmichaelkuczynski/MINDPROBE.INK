@@ -707,6 +707,78 @@ User message: ${message}`;
     res.json({ steps, passed, analysisId });
   });
 
+  // ── Dialogue Formatting ───────────────────────────────────────────────────
+  app.post('/api/format-dialogue', async (req, res) => {
+    try {
+      const { text, provider } = req.body;
+      if (!text || typeof text !== 'string' || text.trim().length < 10) {
+        return res.status(400).json({ error: 'text is required (min 10 chars)' });
+      }
+
+      const llm = new LLMService();
+      const llmProvider: import('./services/llmService').LLMProvider = provider || 'zhi1';
+
+      const systemPrompt = `You are a precise dialogue formatter. Given text containing a conversation between two people, you must:
+1. Identify the two speakers. Use detected names if clearly present (e.g. "SMITH", "JONES"). Otherwise use "SPEAKER_A" and "SPEAKER_B".
+2. Produce one line per speaking turn in the format: LABEL: [exact text of that turn, verbatim — do NOT paraphrase or summarize]
+3. Preserve every word spoken. Do not add commentary.
+4. Return ONLY valid JSON in this exact shape — no markdown, no extra keys:
+{"speakerA":"LABEL_A","speakerB":"LABEL_B","turns":[{"speaker":"A","label":"LABEL_A","text":"..."},{"speaker":"B","label":"LABEL_B","text":"..."}]}`;
+
+      const userPrompt = `Format this dialogue:\n\n${text.trim()}`;
+
+      const llmResponse = await llm.sendMessage(llmProvider, userPrompt, systemPrompt);
+      const rawContent = llmResponse.content.trim();
+
+      let parsed: { speakerA: string; speakerB: string; turns: { speaker: string; label: string; text: string }[] };
+      try {
+        const jsonStart = rawContent.indexOf('{');
+        const jsonEnd = rawContent.lastIndexOf('}');
+        parsed = JSON.parse(rawContent.slice(jsonStart, jsonEnd + 1));
+      } catch {
+        return res.status(422).json({ error: 'LLM returned non-parseable response — try again or reformat manually', raw: rawContent });
+      }
+
+      const { speakerA, speakerB, turns } = parsed;
+      const formattedLines = turns.map((t: any) => `${t.label}: ${t.text}`);
+      const formattedText = formattedLines.join('\n');
+
+      res.json({ speakerA, speakerB, formattedText, turns });
+    } catch (err: any) {
+      console.error('[format-dialogue]', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Duo Analysis ──────────────────────────────────────────────────────────
+  app.post('/api/analyze-duo', async (req, res) => {
+    try {
+      const { baseAnalysisType, provider, formattedText, speakerA, speakerB } = req.body;
+      if (!baseAnalysisType || !formattedText || !speakerA || !speakerB) {
+        return res.status(400).json({ error: 'baseAnalysisType, formattedText, speakerA, speakerB are required' });
+      }
+
+      const { extractSpeakerTexts } = await import('./services/analysisEngine');
+      const { textA, textB } = extractSpeakerTexts(formattedText, speakerA, speakerB);
+
+      if (!textA.trim() || !textB.trim()) {
+        return res.status(422).json({ error: `Could not extract text for both speakers. Ensure the formatted dialogue uses "${speakerA}:" and "${speakerB}:" prefixes.` });
+      }
+
+      const userId = req.isAuthenticated() ? req.user!.id : null;
+
+      const [analysisA, analysisB] = await Promise.all([
+        storage.createAnalysis({ analysisType: baseAnalysisType, llmProvider: provider || 'zhi1', inputText: textA, additionalContext: `[Duo analysis — ${speakerA}]`, userId }),
+        storage.createAnalysis({ analysisType: baseAnalysisType, llmProvider: provider || 'zhi1', inputText: textB, additionalContext: `[Duo analysis — ${speakerB}]`, userId }),
+      ]);
+
+      res.json({ analysisIdA: analysisA.id, analysisIdB: analysisB.id, speakerA, speakerB });
+    } catch (err: any) {
+      console.error('[analyze-duo]', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   // ── Reference Examples Admin API ──────────────────────────────────────────
   // All endpoints require the jmkuczynski admin account or isUnlimited flag.
 

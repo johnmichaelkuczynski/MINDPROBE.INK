@@ -5,7 +5,8 @@ import { ControlPanel } from "@/components/ControlPanel";
 import { RealTimeResults } from "@/components/RealTimeResults";
 import { DialogueSystem } from "@/components/DialogueSystem";
 import { ChunkSelector } from "@/components/ChunkSelector";
-import { AnalysisType, LLMProvider } from "@/types/analysis";
+import { DuoPanel } from "@/components/DuoPanel";
+import { AnalysisType, LLMProvider, isDuoType } from "@/types/analysis";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useToast } from "@/hooks/use-toast";
 import { useUser } from "@/hooks/useUser";
@@ -314,62 +315,73 @@ export default function Home() {
           />
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
-          {/* Input Section */}
-          <div className="xl:col-span-2">
-            <InputSection
-              inputText={inputText}
-              onTextChange={setInputText}
-              additionalContext={additionalContext}
-              onContextChange={setAdditionalContext}
-              onFileUpload={handleFileUpload}
-              isUploading={isUploading}
-            />
-          </div>
-
-          {/* Control Panel */}
-          <div>
-            <ControlPanel
-              selectedLLM={selectedLLM}
-              onLLMSelect={setSelectedLLM}
-              onStartAnalysis={handleStartAnalysis}
-              onPauseAnalysis={() => setIsAnalyzing(false)}
-              onStopAnalysis={() => {
-                setIsAnalyzing(false);
-                setProgress(0);
-                setQuestionsProcessed(0);
-                setCurrentPhase("Stopped");
-              }}
-              onDownload={handleDownload}
-              isAnalyzing={isStarting || isAnalyzing}
-              progress={progress}
-              questionsProcessed={questionsProcessed}
-              totalQuestions={totalQuestions}
-              currentPhase={currentPhase}
-              estimatedTime={estimatedTimeRemaining}
-              canDownload={!isAnalyzing && questionsProcessed > 0}
-            />
-          </div>
-        </div>
-
-        {/* Real-Time Results */}
-        <div className="mt-8">
-          <RealTimeResults
-            analysisId={currentAnalysisId}
-            isStreaming={isAnalyzing}
+        {/* Duo mode — full self-contained panel */}
+        {isDuoType(selectedAnalysisType) ? (
+          <DuoPanel
+            selectedAnalysisType={selectedAnalysisType}
+            selectedLLM={selectedLLM}
+            onNewAnalysis={handleNewAnalysis}
           />
-        </div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 xl:grid-cols-3 gap-8">
+              {/* Input Section */}
+              <div className="xl:col-span-2">
+                <InputSection
+                  inputText={inputText}
+                  onTextChange={setInputText}
+                  additionalContext={additionalContext}
+                  onContextChange={setAdditionalContext}
+                  onFileUpload={handleFileUpload}
+                  isUploading={isUploading}
+                />
+              </div>
 
-        {/* Dialogue System */}
-        <div className="mt-8">
-          <DialogueSystem
-            analysisId={currentAnalysisId}
-            messages={dialogue || []}
-            onSendMessage={handleSendDialogue}
-            onRegenerateAnalysis={handleRegenerateAnalysis}
-            isSending={sendDialogue.isPending}
-          />
-        </div>
+              {/* Control Panel */}
+              <div>
+                <ControlPanel
+                  selectedLLM={selectedLLM}
+                  onLLMSelect={setSelectedLLM}
+                  onStartAnalysis={handleStartAnalysis}
+                  onPauseAnalysis={() => setIsAnalyzing(false)}
+                  onStopAnalysis={() => {
+                    setIsAnalyzing(false);
+                    setProgress(0);
+                    setQuestionsProcessed(0);
+                    setCurrentPhase("Stopped");
+                  }}
+                  onDownload={handleDownload}
+                  isAnalyzing={isStarting || isAnalyzing}
+                  progress={progress}
+                  questionsProcessed={questionsProcessed}
+                  totalQuestions={totalQuestions}
+                  currentPhase={currentPhase}
+                  estimatedTime={estimatedTimeRemaining}
+                  canDownload={!isAnalyzing && questionsProcessed > 0}
+                />
+              </div>
+            </div>
+
+            {/* Real-Time Results */}
+            <div className="mt-8">
+              <RealTimeResults
+                analysisId={currentAnalysisId}
+                isStreaming={isAnalyzing}
+              />
+            </div>
+
+            {/* Dialogue System */}
+            <div className="mt-8">
+              <DialogueSystem
+                analysisId={currentAnalysisId}
+                messages={dialogue || []}
+                onSendMessage={handleSendDialogue}
+                onRegenerateAnalysis={handleRegenerateAnalysis}
+                isSending={sendDialogue.isPending}
+              />
+            </div>
+          </>
+        )}
       </div>
     </div>
   );

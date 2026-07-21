@@ -5,6 +5,32 @@ import { getPromptReferenceBlock } from './referenceStore';
 import fs from 'fs';
 import path from 'path';
 
+export function extractSpeakerTexts(
+  formattedDialogue: string,
+  speakerALabel: string,
+  speakerBLabel: string
+): { textA: string; textB: string } {
+  const lines = formattedDialogue.split('\n');
+  const textsA: string[] = [];
+  const textsB: string[] = [];
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const aPrefix = speakerALabel.toUpperCase() + ':';
+    const bPrefix = speakerBLabel.toUpperCase() + ':';
+    const upperLine = trimmed.toUpperCase();
+    if (upperLine.startsWith(aPrefix)) {
+      textsA.push(trimmed.slice(speakerALabel.length + 1).trim());
+    } else if (upperLine.startsWith(bPrefix)) {
+      textsB.push(trimmed.slice(speakerBLabel.length + 1).trim());
+    }
+  }
+  return {
+    textA: textsA.join('\n\n'),
+    textB: textsB.join('\n\n'),
+  };
+}
+
 export type AnalysisType =
   | 'micro-cognitive'
   | 'cognitive'
