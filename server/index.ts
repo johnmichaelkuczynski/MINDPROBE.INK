@@ -53,6 +53,9 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  const { seedReferenceExamples } = await import('./services/referenceStore');
+  seedReferenceExamples().catch(e => console.error('[Startup] Reference seed failed:', e));
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {

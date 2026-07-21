@@ -1,4 +1,4 @@
-import { type User, type InsertUser, type UserVisit, type AnalysisResult, type InsertAnalysis, type DialogueMessage, type InsertDialogue, users, userVisits, analysisResults, dialogueMessages } from "@shared/schema";
+import { type User, type InsertUser, type UserVisit, type AnalysisResult, type InsertAnalysis, type DialogueMessage, type InsertDialogue, type ReferenceExample, type InsertReferenceExample, users, userVisits, analysisResults, dialogueMessages, referenceExamples } from "@shared/schema";
 import { eq, desc, isNull, gte } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool, neonConfig } from "@neondatabase/serverless";
@@ -38,6 +38,11 @@ export interface IStorage {
 
   recordCreditPurchase(purchase: { userId: string; stripeSessionId: string; stripePaymentIntentId: string; amount: number; credits: number; status: string }): Promise<boolean>;
   getUserCreditPurchases(userId: string): Promise<any[]>;
+
+  getReferenceExamples(analysisType?: string, exampleType?: string, questionId?: string): Promise<ReferenceExample[]>;
+  addReferenceExample(example: InsertReferenceExample): Promise<ReferenceExample>;
+  deleteReferenceExample(id: string): Promise<void>;
+  listAllReferenceExamples(): Promise<ReferenceExample[]>;
 
   sessionStore: any;
 }
@@ -160,6 +165,32 @@ export class DatabaseStorage implements IStorage {
 
   async getDialogueMessages(analysisId: string): Promise<DialogueMessage[]> {
     return await db.select().from(dialogueMessages).where(eq(dialogueMessages.analysisId, analysisId));
+  }
+
+  async getReferenceExamples(analysisType?: string, exampleType?: string, questionId?: string): Promise<ReferenceExample[]> {
+    let query = db.select().from(referenceExamples).$dynamic();
+    const conditions = [];
+    if (analysisType) conditions.push(eq(referenceExamples.analysisType, analysisType));
+    if (exampleType) conditions.push(eq(referenceExamples.exampleType, exampleType));
+    if (questionId) conditions.push(eq(referenceExamples.questionId, questionId));
+    if (conditions.length > 0) {
+      const { and } = await import('drizzle-orm');
+      query = query.where(and(...conditions) as any);
+    }
+    return await query.orderBy(referenceExamples.createdAt);
+  }
+
+  async addReferenceExample(example: InsertReferenceExample): Promise<ReferenceExample> {
+    const result = await db.insert(referenceExamples).values(example).returning();
+    return result[0];
+  }
+
+  async deleteReferenceExample(id: string): Promise<void> {
+    await db.delete(referenceExamples).where(eq(referenceExamples.id, id));
+  }
+
+  async listAllReferenceExamples(): Promise<ReferenceExample[]> {
+    return await db.select().from(referenceExamples).orderBy(desc(referenceExamples.createdAt));
   }
 
   async recordCreditPurchase(purchase: { userId: string; stripeSessionId: string; stripePaymentIntentId: string; amount: number; credits: number; status: string }): Promise<boolean> {

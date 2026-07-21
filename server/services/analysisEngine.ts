@@ -1,6 +1,7 @@
 import { LLMService, LLMProvider } from './llmService';
 import * as tractatus from './tractatusMemory';
 import type { DocumentSkeleton } from './tractatusMemory';
+import { getPromptReferenceBlock } from './referenceStore';
 import fs from 'fs';
 import path from 'path';
 
@@ -416,11 +417,15 @@ A score of N/100 means the author outperforms N% of all writers on the cognitive
 
 Score: XX/100`;
 
+    const dbReferenceBlock = isDescriptive
+      ? await getPromptReferenceBlock(analysisType, question.id)
+      : '';
+
     const prompt = `${scoringCalibration}
 
 ${this.completeInstructions}
 
-${contextSection ? contextSection + '\n\n' : ''}${contextPrompt}Answer this question in connection with this text: ${question.question}
+${contextSection ? contextSection + '\n\n' : ''}${dbReferenceBlock ? dbReferenceBlock + '\n\n' : ''}${contextPrompt}Answer this question in connection with this text: ${question.question}
 
 Text: ${text}
 

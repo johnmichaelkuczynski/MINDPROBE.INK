@@ -54,6 +54,21 @@ export const creditPurchases = pgTable("credit_purchases", {
   completedAt: timestamp("completed_at"),
 });
 
+export const referenceExamples = pgTable("reference_examples", {
+  id: varchar("id").primaryKey().default(sql`gen_random_uuid()`),
+  analysisType: text("analysis_type").notNull(),
+  exampleType: text("example_type").notNull(),
+  questionId: text("question_id"),
+  label: text("label").notNull(),
+  content: text("content").notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow(),
+});
+
+export const insertReferenceExampleSchema = createInsertSchema(referenceExamples).omit({ id: true, createdAt: true });
+export type InsertReferenceExample = z.infer<typeof insertReferenceExampleSchema>;
+export type ReferenceExample = typeof referenceExamples.$inferSelect;
+
 export const insertUserSchema = createInsertSchema(users).pick({
   username: true,
   password: true,

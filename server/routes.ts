@@ -707,6 +707,50 @@ User message: ${message}`;
     res.json({ steps, passed, analysisId });
   });
 
+  // ── Reference Examples Admin API ──────────────────────────────────────────
+  // All endpoints require the jmkuczynski admin account or isUnlimited flag.
+
+  function requireAdmin(req: any, res: any, next: any) {
+    if (!req.isAuthenticated || !req.isAuthenticated()) return res.status(401).json({ error: 'Not authenticated' });
+    const user = req.user as any;
+    if (user?.username === 'jmkuczynski' || user?.isUnlimited) return next();
+    return res.status(403).json({ error: 'Admin access required' });
+  }
+
+  app.get('/api/admin/reference-examples', requireAdmin, async (req, res) => {
+    try {
+      const { analysisType, exampleType, questionId } = req.query as Record<string, string>;
+      const examples = analysisType || exampleType || questionId
+        ? await storage.getReferenceExamples(analysisType, exampleType, questionId)
+        : await storage.listAllReferenceExamples();
+      res.json(examples);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.post('/api/admin/reference-examples', requireAdmin, async (req, res) => {
+    try {
+      const { analysisType, exampleType, questionId, label, content, notes } = req.body;
+      if (!analysisType || !exampleType || !label || !content) {
+        return res.status(400).json({ error: 'analysisType, exampleType, label, and content are required' });
+      }
+      const example = await storage.addReferenceExample({ analysisType, exampleType, questionId: questionId || null, label, content, notes: notes || null });
+      res.status(201).json(example);
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  app.delete('/api/admin/reference-examples/:id', requireAdmin, async (req, res) => {
+    try {
+      await storage.deleteReferenceExample(req.params.id);
+      res.json({ deleted: true });
+    } catch (err: any) {
+      res.status(500).json({ error: err.message });
+    }
+  });
+
   const httpServer = createServer(app);
   return httpServer;
 }
