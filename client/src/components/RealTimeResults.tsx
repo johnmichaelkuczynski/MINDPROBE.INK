@@ -224,11 +224,13 @@ export function RealTimeResults({ analysisId, isStreaming }: RealTimeResultsProp
         }
 
         // Standard score line (legacy single-score format)
-        const legacyScoreMatch = trimmedLine.match(/(\d+)\/100/);
+        // Use specific "Score: XX/100" match to avoid capturing contextual numbers (e.g. "15/100 on carapace dimension")
+        const legacyScoreMatch = trimmedLine.match(/Score:\s*(\d+)\/100/i)
+          ?? (trimmedLine.match(/(\d+)\/100$/) ? trimmedLine.match(/(\d+)\/100$/) : null);
         if (legacyScoreMatch && !FINGERPRINT_FIELDS.some(f => trimmedLine.startsWith(f))) {
           const score = parseInt(legacyScoreMatch[1]);
           const scoreColor = score >= 90 ? 'text-green-600' : score >= 70 ? 'text-yellow-600' : 'text-red-600';
-          const displayLabel = trimmedLine.replace(`${legacyScoreMatch[1]}/100`, '').trim();
+          const displayLabel = trimmedLine.replace(/Score:\s*\d+\/100/i, '').replace(/\d+\/100$/, '').trim();
           return (
             <div key={index} className="mt-3 p-4 bg-blue-50 rounded-lg border-l-4 border-blue-400">
               <div className="flex items-center justify-between">
