@@ -2,7 +2,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { LLMProvider } from "@/types/analysis";
-import { Play, Pause, Square, Download, Copy } from "lucide-react";
+import { Play, Pause, Square, Download, Copy, TreePine } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 
 interface ControlPanelProps {
@@ -12,6 +12,7 @@ interface ControlPanelProps {
   onPauseAnalysis: () => void;
   onStopAnalysis: () => void;
   onDownload: () => void;
+  onTractatusTree?: () => void;
   isAnalyzing: boolean;
   progress: number;
   questionsProcessed: number;
@@ -19,6 +20,7 @@ interface ControlPanelProps {
   currentPhase: string;
   estimatedTime: string;
   canDownload: boolean;
+  hasText?: boolean;
 }
 
 const llmOptions = [
@@ -33,13 +35,15 @@ export function ControlPanel({
   onPauseAnalysis,
   onStopAnalysis,
   onDownload,
+  onTractatusTree,
   isAnalyzing,
   progress,
   questionsProcessed,
   totalQuestions,
   currentPhase,
   estimatedTime,
-  canDownload
+  canDownload,
+  hasText = false,
 }: ControlPanelProps) {
   const { toast } = useToast();
 
@@ -152,6 +156,25 @@ export function ControlPanel({
           </div>
         </CardContent>
       </Card>
+
+      {/* Tractatus Tree */}
+      {onTractatusTree && (
+        <Card className="border-border-light shadow-sm">
+          <CardContent className="p-6">
+            <h3 className="text-lg font-semibold mb-4">Transform</h3>
+            <Button
+              onClick={onTractatusTree}
+              disabled={!hasText}
+              className="w-full bg-indigo-600 hover:bg-indigo-700 text-white gap-2"
+              data-testid="button-tractatus-tree"
+            >
+              <TreePine className="h-4 w-4" />
+              Tractatus Tree
+            </Button>
+            <p className="text-xs text-gray-400 mt-2">Compress text into a Wittgenstein-style hierarchical proposition tree</p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Export Options */}
       <Card className="border-border-light shadow-sm">

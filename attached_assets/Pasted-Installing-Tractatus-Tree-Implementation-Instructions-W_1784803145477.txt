@@ -1,0 +1,263 @@
+Installing Tractatus Tree — Implementation Instructions
+What it does
+Takes a text input and generates a hierarchically numbered set of propositions in Wittgenstein's Tractatus style (1.0, 1.1, 1.1.1, 2.0, etc.), displayed as progressive "zoom" columns from most abstract to most detailed. Exports as .txt or .docx.
+
+STEP 1 — Server service file
+Create server/services/tractatusTree.ts with this exact content:
+
+import { callLLM } from "../llm"; // adjust import path to wherever your LLM caller lives
+export interface TractatusStatement {
+  number: string;
+  text: string;
+  depth: number;
+}
+export interface TractatusTreeResult {
+  columns: TractatusStatement[][];
+  maxDepth: number;
+  totalStatements: number;
+}
+function getDepth(numStr: string): number {
+  const parts = numStr.split('.').map(n => parseInt(n, 10)).filter(n => !isNaN(n));
+  if (parts.length === 0) return 0;
+  if (parts.length === 1) return 0;
+  if (parts.length === 2 && parts[1] === 0) return 0;
+  return parts.length - 1;
+}
+function parseTractatusOutput(text: string): TractatusStatement[] {
+  const lines = text.split('\n').filter(line => line.trim());
+  const statements: TractatusStatement[] = [];
+  for (const line of lines) {
+    const match = line.match(/^[•\-\*]?\s*(\d+(?:\.\d+)*)\s*[\.:\-]?\s*(.+)$/);
+    if (match) {
+      statements.push({ number: match[1], text: match[2].trim(), depth: getDepth(match[1]) });
+    }
+  }
+  return statements;
+}
+export function buildTractatusTree(statements: TractatusStatement[]): TractatusTreeResult {
+  if (statements.length === 0) return { columns: [], maxDepth: 0, totalStatements: 0 };
+  const maxDepth = Math.max(...statements.map(s => s.depth));
+  const minDepth = Math.min(...statements.map(s => s.depth));
+  const columns: TractatusStatement[][] = [];
+  for (let depth = minDepth; depth <= maxDepth; depth++) {
+    const col = statements.filter(s => s.depth <= depth);
+    if (col.length > 0) columns.push(col);
+  }
+  return { columns, maxDepth, totalStatements: statements.length };
+}
+export async function generateTractatusTree(
+  text: string,
+  provider: string = "openai",
+  onProgress?: (progress: { current: number; total: number; message: string }) => void
+): Promise<TractatusTreeResult> {
+  const wordCount = text.split(/\s+/).length;
+  const estimatedSections = Math.ceil(wordCount / 2000);
+  onProgress?.({ current: 0, total: estimatedSections + 1, message: "Generating Tractatus structure..." });
+  const prompt = `You are a master of philosophical compression, inspired by Ludwig Wittgenstein's Tractatus Logico-Philosophicus.
+Your task is to rewrite the following text as a series of hierarchically numbered propositions. Each proposition must be:
+1. A single, self-contained statement expressing one idea
+2. Numbered using decimal notation showing logical relationships (1.0, 1.1, 1.1.1, 1.1.2, 1.2, 2.0, etc.)
+3. Progressively more specific as the decimal places increase
+CRITICAL RULES:
+- Create a DEEP hierarchy with 3-5 levels of depth
+- Generate MULTIPLE top-level statements (1.0, 2.0, 3.0, 4.0, etc.) — at least ${Math.max(3, Math.min(10, Math.ceil(wordCount / 500)))} of them
+- Do NOT put everything under 1.0 — identify distinct major themes and give each its own top-level number
+- Every statement must stand alone as a meaningful proposition
+- Preserve ALL important ideas from the original text
+FORMAT:
+1.0 [Top-level thesis]
+1.1 [Elaboration of 1.0]
+1.1.1 [Specification of 1.1]
+2.0 [Second top-level thesis]
+...
+TEXT TO TRANSFORM:
+${text}
+Generate the hierarchical Tractatus structure now:`;
+  const response = await callLLM(provider, prompt);
+  onProgress?.({ current: 1, total: estimatedSections + 1, message: "Parsing hierarchical structure..." });
+  let statements = parseTractatusOutput(response);
+  if (statements.length === 0) {
+    const lines = response.split('\n').filter(l => l.trim());
+    lines.forEach((line, i) => {
+      statements.push({ number: `${Math.floor(i / 3) + 1}.${i % 3}`, text: line.replace(/^[•\-\*\d\.]+\s*/, ''), depth: 1 });
+    });
+  }
+  onProgress?.({ current: estimatedSections + 1, total: estimatedSections + 1, message: "Building tree columns..." });
+  return buildTractatusTree(statements);
+}
+export function formatTreeColumn(statements: TractatusStatement[]): string {
+  return statements.map(s => `${s.number} ${s.text}`).join('\n');
+}
+
+STEP 2 — API route
+Add this to your routes file (server/routes.ts or equivalent). It uses SSE streaming:
+
+app.post("/api/tractatus-tree", async (req, res) => {
+  const { text, provider } = req.body;
+  if (!text || typeof text !== "string") {
+    return res.status(400).json({ error: "Missing or invalid 'text' field" });
+  }
+  if (text.split(/\s+/).length < 100) {
+    return res.status(400).json({ error: "Text too short (minimum 100 words)" });
+  }
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.flushHeaders();
+  try {
+    const { generateTractatusTree } = await import("./services/tractatusTree");
+    const result = await generateTractatusTree(
+      text,
+      provider || 'openai',
+      (progress) => {
+        res.write(`data: ${JSON.stringify({ type: 'progress', ...progress })}\n\n`);
+      }
+    );
+    res.write(`data: ${JSON.stringify({ type: 'complete', result })}\n\n`);
+  } catch (error: any) {
+    res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+  } finally {
+    res.end();
+  }
+});
+
+STEP 3 — Frontend dependencies
+Install if not already present:
+
+npm install docx file-saver
+npm install -D @types/file-saver
+
+STEP 4 — Frontend state variables
+Add to your component:
+
+const [showTractatusTree, setShowTractatusTree] = useState(false);
+const [tractatusTreeProgress, setTractatusTreeProgress] = useState<{current: number, total: number, message: string} | null>(null);
+const [tractatusTreeColumns, setTractatusTreeColumns] = useState<{number: string, text: string, depth: number}[][]>([]);
+const [tractatusTreeMaxDepth, setTractatusTreeMaxDepth] = useState(0);
+const [isGeneratingTree, setIsGeneratingTree] = useState(false);
+const [tractatusTreeTitle, setTractatusTreeTitle] = useState("TRACTATUS TREE");
+
+STEP 5 — Frontend handler functions
+const handleGenerateTractatusTree = async () => {
+  setIsGeneratingTree(true);
+  setTractatusTreeColumns([]);
+  setTractatusTreeProgress({ current: 0, total: 1, message: "Starting..." });
+  try {
+    const response = await fetch('/api/tractatus-tree', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text, provider: selectedLLM })
+    });
+    const reader = response.body?.getReader();
+    if (!reader) throw new Error('No response body');
+    const decoder = new TextDecoder();
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      const chunk = decoder.decode(value);
+      const lines = chunk.split('\n');
+      for (const line of lines) {
+        if (line.startsWith('data: ')) {
+          try {
+            const data = JSON.parse(line.slice(6));
+            if (data.type === 'progress') {
+              setTractatusTreeProgress({ current: data.current, total: data.total, message: data.message });
+            } else if (data.type === 'complete') {
+              setTractatusTreeColumns(data.result.columns);
+              setTractatusTreeMaxDepth(data.result.maxDepth);
+              setTractatusTreeProgress(null);
+            } else if (data.type === 'error') {
+              throw new Error(data.message);
+            }
+          } catch {}
+        }
+      }
+    }
+  } catch (error: any) {
+    console.error('Tractatus Tree error:', error);
+  } finally {
+    setIsGeneratingTree(false);
+  }
+};
+// Plain text download
+const downloadTractatusTreeTxt = () => {
+  const content = tractatusTreeColumns[tractatusTreeColumns.length - 1]
+    ?.map(s => `${s.number} ${s.text}`)
+    .join('\n') || '';
+  const blob = new Blob([content], { type: 'text/plain' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = 'tractatus_tree.txt'; a.click();
+  URL.revokeObjectURL(url);
+};
+// Word (.docx) download
+const downloadTractatusTreeWord = async () => {
+  const { Document, Packer, Paragraph, TextRun, HeadingLevel } = await import('docx');
+  const { saveAs } = await import('file-saver');
+  const allStatements = tractatusTreeColumns[tractatusTreeColumns.length - 1] || [];
+  const children: Paragraph[] = [
+    new Paragraph({ text: tractatusTreeTitle, heading: HeadingLevel.HEADING_1 }),
+  ];
+  tractatusTreeColumns.forEach((_, idx) => {
+    const levelLabel = `Level ${idx + 1}`;
+    children.push(new Paragraph({ text: levelLabel, heading: HeadingLevel.HEADING_2 }));
+    const levelStatements = tractatusTreeColumns[idx];
+    levelStatements.forEach(s => {
+      children.push(new Paragraph({
+        children: [new TextRun({ text: `${s.number} ${s.text}` })],
+        indent: { left: s.depth * 360 }
+      }));
+    });
+  });
+  const doc = new Document({ sections: [{ children }] });
+  const blob = await Packer.toBlob(doc);
+  saveAs(blob, 'tractatus_tree.docx');
+};
+
+STEP 6 — Frontend UI (dialog/panel)
+Trigger button:
+
+<button onClick={() => { setShowTractatusTree(true); handleGenerateTractatusTree(); }}>
+  TRACTATUS TREE
+</button>
+
+Display panel (inside a dialog or section):
+
+{showTractatusTree && (
+  <div>
+    <input
+      value={tractatusTreeTitle}
+      onChange={e => setTractatusTreeTitle(e.target.value)}
+      placeholder="Document title (for download)"
+    />
+    {tractatusTreeProgress && (
+      <p>{tractatusTreeProgress.message} ({tractatusTreeProgress.current}/{tractatusTreeProgress.total})</p>
+    )}
+    {tractatusTreeColumns.length > 0 && (
+      <div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          {tractatusTreeColumns.map((col, idx) => (
+            <button key={idx} onClick={() => setActiveColumn(idx)}>
+              Level {idx + 1}
+            </button>
+          ))}
+        </div>
+        {/* Show active column */}
+        <pre>
+          {tractatusTreeColumns[activeColumn]?.map(s =>
+            `${'  '.repeat(s.depth)}${s.number} ${s.text}`
+          ).join('\n')}
+        </pre>
+        <button onClick={downloadTractatusTreeTxt}>Download .txt</button>
+        <button onClick={downloadTractatusTreeWord}>Download .docx</button>
+      </div>
+    )}
+  </div>
+)}
+
+Key notes for the receiving agent
+The callLLM(provider, prompt) function must accept a provider string ("openai", "anthropic", etc.) and return the raw text response. Match whatever that app's LLM abstraction layer is called.
+The endpoint uses SSE (Server-Sent Events), not plain JSON — the client must read it as a stream.
+Minimum 100 words required in the input text.
+No database changes required — it's stateless.
+The column display logic: Level 1 = top-level statements only, each subsequent level adds one more depth tier, last level = full tree.

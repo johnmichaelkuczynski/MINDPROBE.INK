@@ -782,6 +782,36 @@ User message: ${message}`;
     }
   });
 
+  // ── Tractatus Tree ────────────────────────────────────────────────────────
+  app.post('/api/tractatus-tree', async (req, res) => {
+    const { text, provider } = req.body;
+    if (!text || typeof text !== 'string') {
+      return res.status(400).json({ error: "Missing or invalid 'text' field" });
+    }
+    if (text.split(/\s+/).length < 100) {
+      return res.status(400).json({ error: 'Text too short (minimum 100 words)' });
+    }
+    res.setHeader('Content-Type', 'text/event-stream');
+    res.setHeader('Cache-Control', 'no-cache');
+    res.setHeader('Connection', 'keep-alive');
+    res.flushHeaders();
+    try {
+      const { generateTractatusTree } = await import('./services/tractatusTree');
+      const result = await generateTractatusTree(
+        text,
+        provider || 'zhi1',
+        (progress) => {
+          res.write(`data: ${JSON.stringify({ type: 'progress', ...progress })}\n\n`);
+        }
+      );
+      res.write(`data: ${JSON.stringify({ type: 'complete', result })}\n\n`);
+    } catch (error: any) {
+      res.write(`data: ${JSON.stringify({ type: 'error', message: error.message })}\n\n`);
+    } finally {
+      res.end();
+    }
+  });
+
   // ── Compare Analysis ──────────────────────────────────────────────────────
 
   // Step 1: create the two individual analyses for A and B

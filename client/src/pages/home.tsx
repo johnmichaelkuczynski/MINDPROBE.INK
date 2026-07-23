@@ -7,6 +7,7 @@ import { DialogueSystem } from "@/components/DialogueSystem";
 import { ChunkSelector } from "@/components/ChunkSelector";
 import { DuoPanel } from "@/components/DuoPanel";
 import { ComparePanel } from "@/components/ComparePanel";
+import { TractatusTreeDialog } from "@/components/TractatusTreeDialog";
 import { AnalysisType, LLMProvider, isDuoType } from "@/types/analysis";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +20,7 @@ import { SiGoogle } from "react-icons/si";
 export default function Home() {
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<AnalysisType>('cognitive');
   const [compareMode, setCompareMode] = useState(false);
+  const [showTractatusTree, setShowTractatusTree] = useState(false);
   const VALID_LLMS: LLMProvider[] = ['zhi1', 'zhi2'];
   const getSavedLLM = (): LLMProvider => {
     const saved = localStorage.getItem('mindprobe_llm') as LLMProvider | null;
@@ -305,6 +307,14 @@ export default function Home() {
         </div>
       </header>
 
+      {/* Tractatus Tree Dialog */}
+      <TractatusTreeDialog
+        open={showTractatusTree}
+        onOpenChange={setShowTractatusTree}
+        inputText={inputText}
+        selectedLLM={selectedLLM}
+      />
+
       {/* Chunk Selector Modal */}
       {showChunkSelector && (
         <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
@@ -370,6 +380,7 @@ export default function Home() {
                     setCurrentPhase("Stopped");
                   }}
                   onDownload={handleDownload}
+                  onTractatusTree={() => setShowTractatusTree(true)}
                   isAnalyzing={isStarting || isAnalyzing}
                   progress={progress}
                   questionsProcessed={questionsProcessed}
@@ -377,6 +388,7 @@ export default function Home() {
                   currentPhase={currentPhase}
                   estimatedTime={estimatedTimeRemaining}
                   canDownload={!isAnalyzing && questionsProcessed > 0}
+                  hasText={!!inputText.trim()}
                 />
               </div>
             </div>
