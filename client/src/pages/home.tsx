@@ -6,6 +6,7 @@ import { RealTimeResults } from "@/components/RealTimeResults";
 import { DialogueSystem } from "@/components/DialogueSystem";
 import { ChunkSelector } from "@/components/ChunkSelector";
 import { DuoPanel } from "@/components/DuoPanel";
+import { ComparePanel } from "@/components/ComparePanel";
 import { AnalysisType, LLMProvider, isDuoType } from "@/types/analysis";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useToast } from "@/hooks/use-toast";
@@ -17,6 +18,7 @@ import { SiGoogle } from "react-icons/si";
 
 export default function Home() {
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<AnalysisType>('cognitive');
+  const [compareMode, setCompareMode] = useState(false);
   const VALID_LLMS: LLMProvider[] = ['zhi1', 'zhi2'];
   const getSavedLLM = (): LLMProvider => {
     const saved = localStorage.getItem('mindprobe_llm') as LLMProvider | null;
@@ -321,11 +323,19 @@ export default function Home() {
           <AnalysisSelector
             selectedType={selectedAnalysisType}
             onTypeSelect={setSelectedAnalysisType}
+            compareMode={compareMode}
+            onCompareModeChange={setCompareMode}
           />
         </div>
 
-        {/* Duo mode — full self-contained panel */}
-        {isDuoType(selectedAnalysisType) ? (
+        {/* Compare mode */}
+        {compareMode ? (
+          <ComparePanel
+            selectedAnalysisType={selectedAnalysisType}
+            selectedLLM={selectedLLM}
+            onNewAnalysis={handleNewAnalysis}
+          />
+        ) : isDuoType(selectedAnalysisType) ? (
           <DuoPanel
             selectedAnalysisType={selectedAnalysisType}
             selectedLLM={selectedLLM}

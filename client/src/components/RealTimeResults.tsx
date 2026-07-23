@@ -8,6 +8,7 @@ import { StreamEvent } from "@/types/analysis";
 interface RealTimeResultsProps {
   analysisId: string | null;
   isStreaming: boolean;
+  onComplete?: () => void;
 }
 
 interface ProcessedResult {
@@ -25,7 +26,7 @@ interface SkeletonStatus {
   isExcerpt?: boolean;
 }
 
-export function RealTimeResults({ analysisId, isStreaming }: RealTimeResultsProps) {
+export function RealTimeResults({ analysisId, isStreaming, onComplete }: RealTimeResultsProps) {
   const [results, setResults] = useState<ProcessedResult[]>([]);
   const [streamingStatus, setStreamingStatus] = useState("Ready");
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -92,6 +93,7 @@ export function RealTimeResults({ analysisId, isStreaming }: RealTimeResultsProp
     } else if (event.type === 'complete') {
       console.log('Analysis complete event received');
       setStreamingStatus("Complete");
+      onComplete?.();
     } else if (event.type === 'error') {
       console.log('Analysis error event received:', event);
       setStreamingStatus("Error");

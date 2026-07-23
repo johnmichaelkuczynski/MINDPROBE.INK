@@ -674,4 +674,125 @@ ${responseStructure}`;
   private delay(ms: number): Promise<void> {
     return new Promise(resolve => setTimeout(resolve, ms));
   }
+
+  // ── Compare Analysis ───────────────────────────────────────────────────────
+
+  private formatResultsAsReport(results: any[]): string {
+    if (!Array.isArray(results) || results.length === 0) return '(no results available)';
+    const lines: string[] = [];
+    const seen = new Map<string, any>();
+    for (const r of results) {
+      const key = r.type === 'summary' ? '__summary__' : (r.data?.questionId ?? r.type);
+      seen.set(key, r);
+    }
+    for (const r of results) {
+      const key = r.type === 'summary' ? '__summary__' : (r.data?.questionId ?? r.type);
+      if (seen.get(key) !== r) continue;
+      if (r.type === 'question' && r.data?.answer) {
+        lines.push(`Q: ${r.data.question || ''}`);
+        lines.push(r.data.answer.trim());
+        lines.push('');
+      } else if (r.type === 'summary' && r.data?.content) {
+        lines.push('SUMMARY:');
+        lines.push(r.data.content.trim());
+        lines.push('');
+      }
+    }
+    return lines.join('\n') || '(no results available)';
+  }
+
+  private getCompareQuestions(baseType: string): { id: string; question: string }[] {
+    const domain = baseType.includes('psychopathological') ? 'psychopathological'
+      : baseType.includes('psychological') ? 'psychological'
+      : 'cognitive';
+
+    if (domain === 'cognitive') {
+      return [
+        { id: 'cmp1', question: 'Overall cognitive fingerprint: Which document shows stronger evidence of genuine re-organizing intelligence — a non-obvious, load-bearing cut that changes what is thinkable in its domain? Compare the theoretical power and explain the gap.' },
+        { id: 'cmp2', question: 'Originality and freshness: Which document introduces genuinely new ideas that were not thinkable before being stated? Which recycles accepted positions in acceptable vocabulary? Quote specific passages from each.' },
+        { id: 'cmp3', question: 'Argumentative rigor and logical structure: Compare the logical architecture of each document — tightness of entailment, epistemic order, presence or absence of fallacies, distinction between logical consequence and rhetorical transition.' },
+        { id: 'cmp4', question: 'Depth, compression, and system-level control: Compare each document\'s ability to maintain a governing concept across its length, integrate earlier points with later ones, and achieve high theoretical leverage with minimal words.' },
+        { id: 'cmp5', question: 'Final head-to-head verdict: State definitively which document demonstrates superior cognitive performance, by approximately how many percentile points, and identify the specific dimensions — fingerprint strength, originality, rigor, depth — that account for the gap. If they are nearly equal, say so and explain on which subdimensions each edges the other.' },
+      ];
+    }
+
+    if (domain === 'psychopathological') {
+      return [
+        { id: 'cmp1', question: 'Clinical profile comparison: Compare the overall level of character organization (healthy/neurotic/borderline/psychotic), identity stability, and reality testing of each author as revealed in these documents.' },
+        { id: 'cmp2', question: 'Defensive style and symptom profile: Compare the dominant defensive operations, neurotic traits, and any clinical signals — paranoid ideation, grandiosity, dissociation, splitting — visible in each document.' },
+        { id: 'cmp3', question: 'Object relations and interpersonal world: Compare how each author represents other people — as full subjects, need-satisfying objects, persecutors, or extensions of the self. Which shows more fully human object relations?' },
+        { id: 'cmp4', question: 'Risk and resilience: Which author shows greater psychiatric vulnerability under stress? Which shows more resilience, better-integrated defenses, and stronger ego functions?' },
+        { id: 'cmp5', question: 'Final head-to-head clinical verdict: On which dimensions do the two authors differ most dramatically? Which shows healthier overall functioning? What is the most clinically significant contrast between the two?' },
+      ];
+    }
+
+    return [
+      { id: 'cmp1', question: 'Character organization and ego structure: Compare the overall psychological maturity, identity stability, and character organization of each author as revealed in these documents.' },
+      { id: 'cmp2', question: 'Emotional functioning and regulation: Compare the emotional intelligence, affective regulation, and dominant emotional tone. Which is better equipped to handle adversity and maintain function under pressure?' },
+      { id: 'cmp3', question: 'Strengths and vulnerabilities: Compare the psychological strengths and most significant vulnerabilities of each author. On which dimensions are they most similar? Most different? Which profile is more adaptive?' },
+      { id: 'cmp4', question: 'Interpersonal style and relational world: Compare social intelligence, attachment style, capacity for empathy, and approach to dependency and authority. Which author shows greater relational sophistication?' },
+      { id: 'cmp5', question: 'Final head-to-head verdict: Which author shows stronger overall psychological functioning? On which specific dimensions is the gap largest, and what does each bring to any collaborative or interpersonal context that the other does not?' },
+    ];
+  }
+
+  public async *processCompareAnalysis(
+    baseType: string,
+    textA: string,
+    textB: string,
+    labelA: string,
+    labelB: string,
+    resultsA: any[],
+    resultsB: any[],
+    provider: LLMProvider
+  ): AsyncGenerator<any> {
+    const reportA = this.formatResultsAsReport(resultsA);
+    const reportB = this.formatResultsAsReport(resultsB);
+    const questions = this.getCompareQuestions(baseType);
+    const truncA = this.truncateForQuestion(textA);
+    const truncB = this.truncateForQuestion(textB);
+
+    for (const q of questions) {
+      const prompt = `You are producing a head-to-head comparative analysis of two documents.
+
+╔══════════════════════════════════════════════════════════════╗
+DOCUMENT A — ${labelA}
+╚══════════════════════════════════════════════════════════════╝
+${truncA}
+
+╔══════════════════════════════════════════════════════════════╗
+DOCUMENT B — ${labelB}
+╚══════════════════════════════════════════════════════════════╝
+${truncB}
+
+╔══════════════════════════════════════════════════════════════╗
+INDIVIDUAL ANALYSIS REPORT FOR ${labelA}
+╚══════════════════════════════════════════════════════════════╝
+${reportA.substring(0, 5000)}
+
+╔══════════════════════════════════════════════════════════════╗
+INDIVIDUAL ANALYSIS REPORT FOR ${labelB}
+╚══════════════════════════════════════════════════════════════╝
+${reportB.substring(0, 5000)}
+
+COMPARISON QUESTION: ${q.question}
+
+Instructions:
+- Be specific and direct. Quote from both documents where helpful.
+- Cite actual scores where available from the individual reports.
+- Do not hedge or equivocate. Make clear comparative verdicts.
+- Refer to the documents as "${labelA}" and "${labelB}" throughout.
+- Use NO formatting markup whatsoever (no **, *, ##, ---, etc.). Plain text only.`;
+
+      let answer = '';
+      for await (const chunk of this.llmService.streamMessage(provider, prompt)) {
+        answer += chunk;
+        yield { type: 'question', data: { questionId: q.id, question: q.question, answer, complete: false } };
+      }
+      yield { type: 'question', data: { questionId: q.id, question: q.question, answer, complete: true } };
+
+      if (q !== questions[questions.length - 1]) {
+        await this.delay(2000);
+      }
+    }
+  }
 }

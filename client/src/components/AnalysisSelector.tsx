@@ -6,6 +6,8 @@ import { Brain, Lightbulb, User, Users, Stethoscope, ClipboardList, Zap } from "
 interface AnalysisSelectorProps {
   selectedType: AnalysisType;
   onTypeSelect: (type: AnalysisType) => void;
+  compareMode?: boolean;
+  onCompareModeChange?: (compare: boolean) => void;
 }
 
 const baseDomains = [
@@ -41,11 +43,20 @@ const badgeStyles: Record<string, string> = {
   duo: 'bg-teal-100 text-teal-700',
 };
 
-export function AnalysisSelector({ selectedType, onTypeSelect }: AnalysisSelectorProps) {
-  const currentlyDuo = isDuoType(selectedType);
+export function AnalysisSelector({ selectedType, onTypeSelect, compareMode = false, onCompareModeChange }: AnalysisSelectorProps) {
+  const currentlyDuo = isDuoType(selectedType) && !compareMode;
   const [duoMode, setDuoMode] = useState<boolean>(currentlyDuo);
 
-  const handleModeToggle = (newDuo: boolean) => {
+  const handleModeToggle = (newMode: 'single' | 'duo' | 'compare') => {
+    if (newMode === 'compare') {
+      setDuoMode(false);
+      onCompareModeChange?.(true);
+      const base = toBaseType(selectedType);
+      onTypeSelect(base);
+      return;
+    }
+    onCompareModeChange?.(false);
+    const newDuo = newMode === 'duo';
     setDuoMode(newDuo);
     const base = toBaseType(selectedType);
     const next = newDuo ? (`${base}-duo` as AnalysisType) : base;
@@ -53,11 +64,13 @@ export function AnalysisSelector({ selectedType, onTypeSelect }: AnalysisSelecto
   };
 
   const handleTypeClick = (baseId: AnalysisType) => {
+    if (compareMode) { onTypeSelect(baseId); return; }
     const next = duoMode ? (`${baseId}-duo` as AnalysisType) : baseId;
     onTypeSelect(next);
   };
 
   const selectedBase = toBaseType(selectedType);
+  const activeMode = compareMode ? 'compare' : duoMode ? 'duo' : 'single';
 
   return (
     <Card className="border-border-light shadow-sm">
@@ -66,25 +79,38 @@ export function AnalysisSelector({ selectedType, onTypeSelect }: AnalysisSelecto
           <h2 className="text-xl font-semibold">Select Analysis Type</h2>
           <div className="flex items-center rounded-lg border border-border-light overflow-hidden text-sm font-medium">
             <button
-              onClick={() => handleModeToggle(false)}
+              onClick={() => handleModeToggle('single')}
               data-testid="toggle-single-mode"
-              className={`px-4 py-1.5 transition-colors ${!duoMode ? 'bg-primary-blue text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+              className={`px-4 py-1.5 transition-colors ${activeMode === 'single' ? 'bg-primary-blue text-white' : 'text-gray-500 hover:bg-gray-50'}`}
             >
               Single
             </button>
             <button
-              onClick={() => handleModeToggle(true)}
+              onClick={() => handleModeToggle('duo')}
               data-testid="toggle-duo-mode"
-              className={`px-4 py-1.5 transition-colors ${duoMode ? 'bg-teal-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+              className={`px-4 py-1.5 transition-colors ${activeMode === 'duo' ? 'bg-teal-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
             >
               Duo
+            </button>
+            <button
+              onClick={() => handleModeToggle('compare')}
+              data-testid="toggle-compare-mode"
+              className={`px-4 py-1.5 transition-colors ${activeMode === 'compare' ? 'bg-indigo-600 text-white' : 'text-gray-500 hover:bg-gray-50'}`}
+            >
+              Compare
             </button>
           </div>
         </div>
 
-        {duoMode && (
+        {activeMode === 'duo' && (
           <p className="text-xs text-teal-700 bg-teal-50 border border-teal-200 rounded-md px-3 py-2 mb-4">
             Duo mode — upload a dialogue transcript. The app profiles each speaker separately.
+          </p>
+        )}
+
+        {activeMode === 'compare' && (
+          <p className="text-xs text-indigo-700 bg-indigo-50 border border-indigo-200 rounded-md px-3 py-2 mb-4">
+            Compare mode — provide two separate documents. The app runs the selected analysis on each and generates a third comparative report.
           </p>
         )}
 

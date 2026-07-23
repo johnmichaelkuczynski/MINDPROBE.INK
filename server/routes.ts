@@ -120,16 +120,48 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Process analysis with streaming
       try {
         const results: any[] = [];
-        
-        for await (const result of analysisEngine.processAnalysis(
-          analysis.analysisType as AnalysisType,
-          analysis.inputText,
-          analysis.additionalContext || undefined,
-          analysis.llmProvider as LLMProvider
-        )) {
-          // Send each result as it comes in
-          res.write(`data: ${JSON.stringify(result)}\n\n`);
-          results.push(result);
+
+        // Detect compare context
+        let compareCtx: any = null;
+        try {
+          if (analysis.additionalContext?.startsWith('{"type":"compare"')) {
+            compareCtx = JSON.parse(analysis.additionalContext);
+          }
+        } catch {}
+
+        if (compareCtx?.type === 'compare') {
+          const [analysisA, analysisB] = await Promise.all([
+            storage.getAnalysis(compareCtx.analysisIdA),
+            storage.getAnalysis(compareCtx.analysisIdB),
+          ]);
+          if (!analysisA || !analysisB) {
+            res.write(`data: ${JSON.stringify({ type: 'error', data: { message: 'Source analyses not found for comparison' } })}\n\n`);
+          } else {
+            for await (const result of analysisEngine.processCompareAnalysis(
+              compareCtx.baseType,
+              analysisA.inputText,
+              analysisB.inputText,
+              compareCtx.labelA,
+              compareCtx.labelB,
+              (analysisA.results as any[]) || [],
+              (analysisB.results as any[]) || [],
+              analysis.llmProvider as LLMProvider
+            )) {
+              res.write(`data: ${JSON.stringify(result)}\n\n`);
+              results.push(result);
+            }
+          }
+        } else {
+          for await (const result of analysisEngine.processAnalysis(
+            analysis.analysisType as AnalysisType,
+            analysis.inputText,
+            analysis.additionalContext || undefined,
+            analysis.llmProvider as LLMProvider
+          )) {
+            // Send each result as it comes in
+            res.write(`data: ${JSON.stringify(result)}\n\n`);
+            results.push(result);
+          }
         }
 
         // Update analysis with final results
@@ -746,6 +778,66 @@ User message: ${message}`;
       res.json({ speakerA, speakerB, formattedText, turns });
     } catch (err: any) {
       console.error('[format-dialogue]', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // ── Compare Analysis ──────────────────────────────────────────────────────
+
+  // Step 1: create the two individual analyses for A and B
+  app.post('/api/analyze-compare', async (req, res) => {
+    try {
+      const { baseAnalysisType, provider, textA, textB, labelA, labelB } = req.body;
+      if (!baseAnalysisType || !textA || !textB) {
+        return res.status(400).json({ error: 'baseAnalysisType, textA, and textB are required' });
+      }
+      const la = (labelA || 'Document A').trim();
+      const lb = (labelB || 'Document B').trim();
+      const userId = req.isAuthenticated() ? req.user!.id : null;
+      const [analysisA, analysisB] = await Promise.all([
+        storage.createAnalysis({ analysisType: baseAnalysisType, llmProvider: provider || 'zhi1', inputText: textA, additionalContext: `[Compare — ${la}]`, userId }),
+        storage.createAnalysis({ analysisType: baseAnalysisType, llmProvider: provider || 'zhi1', inputText: textB, additionalContext: `[Compare — ${lb}]`, userId }),
+      ]);
+      res.json({ analysisIdA: analysisA.id, analysisIdB: analysisB.id, labelA: la, labelB: lb });
+    } catch (err: any) {
+      console.error('[analyze-compare]', err);
+      res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Step 2: after A and B complete, create and return the comparison analysis record
+  app.post('/api/compare-generate', async (req, res) => {
+    try {
+      const { analysisIdA, analysisIdB, baseAnalysisType, provider, labelA, labelB } = req.body;
+      if (!analysisIdA || !analysisIdB || !baseAnalysisType) {
+        return res.status(400).json({ error: 'analysisIdA, analysisIdB, and baseAnalysisType are required' });
+      }
+      const [analysisA, analysisB] = await Promise.all([
+        storage.getAnalysis(analysisIdA),
+        storage.getAnalysis(analysisIdB),
+      ]);
+      if (!analysisA || !analysisB) {
+        return res.status(404).json({ error: 'Source analyses not found' });
+      }
+      const ctx = JSON.stringify({
+        type: 'compare',
+        analysisIdA,
+        analysisIdB,
+        labelA: labelA || 'Document A',
+        labelB: labelB || 'Document B',
+        baseType: baseAnalysisType,
+      });
+      const userId = req.isAuthenticated() ? req.user!.id : null;
+      const analysisC = await storage.createAnalysis({
+        analysisType: baseAnalysisType,
+        llmProvider: provider || 'zhi1',
+        inputText: analysisA.inputText.substring(0, 500),
+        additionalContext: ctx,
+        userId,
+      });
+      res.json({ analysisIdC: analysisC.id });
+    } catch (err: any) {
+      console.error('[compare-generate]', err);
       res.status(500).json({ error: err.message });
     }
   });
