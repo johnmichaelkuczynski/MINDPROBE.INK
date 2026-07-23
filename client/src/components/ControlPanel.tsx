@@ -24,10 +24,6 @@ interface ControlPanelProps {
 const llmOptions = [
   { id: 'zhi1' as LLMProvider, name: 'ZHI 1', description: 'Primary analysis engine' },
   { id: 'zhi2' as LLMProvider, name: 'ZHI 2', description: 'Alternative reasoning model' },
-  { id: 'zhi3' as LLMProvider, name: 'ZHI 3', description: 'Specialized profiling engine' },
-  { id: 'zhi4' as LLMProvider, name: 'ZHI 4', description: 'Research-focused model' },
-  { id: 'zhi5' as LLMProvider, name: 'ZHI 5', description: 'Use for adult content' },
-  { id: 'zhi6' as LLMProvider, name: 'ZHI 6', description: 'Advanced reasoning engine' },
 ];
 
 export function ControlPanel({
