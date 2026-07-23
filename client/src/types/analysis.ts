@@ -26,7 +26,7 @@ export function toBaseType(t: AnalysisType): AnalysisType {
   return (t.endsWith('-duo') ? t.slice(0, -4) : t) as AnalysisType;
 }
 
-export type LLMProvider = "zhi1" | "zhi2" | "zhi3" | "zhi4" | "zhi5";
+export type LLMProvider = "zhi1" | "zhi2" | "zhi3" | "zhi4" | "zhi5" | "zhi6";
 
 export interface AnalysisConfig {
   analysisType: AnalysisType;
