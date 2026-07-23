@@ -528,17 +528,25 @@ Score: XX/100`;
 
     const questionText = this.truncateForQuestion(text);
 
-    const prompt = `${scoringCalibration}
+    // Document is placed FIRST so no model can confuse the instructions text with the actual document.
+    // Instructions, calibration, and context follow the document.
+    const prompt = `════════════════════════════════════════════════════════════════
+DOCUMENT UNDER ANALYSIS — THIS IS THE ONLY TEXT YOU WILL EVALUATE
+════════════════════════════════════════════════════════════════
+${questionText}
+════════════════════════════════════════════════════════════════
+END OF DOCUMENT
+════════════════════════════════════════════════════════════════
+
+${scoringCalibration}
 
 ${this.completeInstructions}
 
-${contextSection ? contextSection + '\n\n' : ''}${dbReferenceBlock ? dbReferenceBlock + '\n\n' : ''}${contextPrompt}Answer this question in connection with this text: ${question.question}
+${contextSection ? contextSection + '\n\n' : ''}${dbReferenceBlock ? dbReferenceBlock + '\n\n' : ''}${contextPrompt}EVALUATION QUESTION: ${question.question}
 
-Text: ${questionText}
+Your response must be exclusively about the DOCUMENT shown above between the dividers. Do not analyze the questions, instructions, calibration text, or any other content in this prompt — only the document.
 
-ANSWER THIS QUESTION IN CONNECTION WITH THIS TEXT.
-
-You are not applying risk-averse, middle-of-the-road evaluation standards. You are not being diplomatic. You call what you see and you justify every claim with direct quotations from the text.
+You are not applying risk-averse, middle-of-the-road evaluation standards. You are not being diplomatic. You call what you see and you justify every claim with direct quotations from the document.
 
 You think very hard about your answers. You do not default to cookbook protocols.
 
