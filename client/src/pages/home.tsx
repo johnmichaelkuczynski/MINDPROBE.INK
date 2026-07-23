@@ -17,7 +17,16 @@ import { SiGoogle } from "react-icons/si";
 
 export default function Home() {
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<AnalysisType>('cognitive');
-  const [selectedLLM, setSelectedLLM] = useState<LLMProvider>('zhi1');
+  const VALID_LLMS: LLMProvider[] = ['zhi1', 'zhi2'];
+  const getSavedLLM = (): LLMProvider => {
+    const saved = localStorage.getItem('mindprobe_llm') as LLMProvider | null;
+    return saved && VALID_LLMS.includes(saved) ? saved : 'zhi1';
+  };
+  const [selectedLLM, setSelectedLLM] = useState<LLMProvider>(getSavedLLM);
+  const handleLLMSelect = (llm: LLMProvider) => {
+    setSelectedLLM(llm);
+    localStorage.setItem('mindprobe_llm', llm);
+  };
   const [inputText, setInputText] = useState("");
   const [additionalContext, setAdditionalContext] = useState("");
   const [isAnalyzing, setIsAnalyzing] = useState(false);
@@ -341,7 +350,7 @@ export default function Home() {
               <div>
                 <ControlPanel
                   selectedLLM={selectedLLM}
-                  onLLMSelect={setSelectedLLM}
+                  onLLMSelect={handleLLMSelect}
                   onStartAnalysis={handleStartAnalysis}
                   onPauseAnalysis={() => setIsAnalyzing(false)}
                   onStopAnalysis={() => {
