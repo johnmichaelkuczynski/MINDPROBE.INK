@@ -5,6 +5,10 @@ import { getPromptReferenceBlock } from './referenceStore';
 import fs from 'fs';
 import path from 'path';
 
+// Max words sent per question prompt — keeps every provider within safe token limits.
+// The skeleton captures the full document structure, so truncation loses less than it seems.
+const MAX_QUESTION_TEXT_WORDS = 12000;
+
 export function extractSpeakerTexts(
   formattedDialogue: string,
   speakerALabel: string,
@@ -116,6 +120,13 @@ export class AnalysisEngine {
 
   private wordCount(text: string): number {
     return text.trim().split(/\s+/).length;
+  }
+
+  private truncateForQuestion(text: string): string {
+    const words = text.trim().split(/\s+/);
+    if (words.length <= MAX_QUESTION_TEXT_WORDS) return text;
+    const truncated = words.slice(0, MAX_QUESTION_TEXT_WORDS).join(' ');
+    return truncated + `\n\n[Document truncated at ${MAX_QUESTION_TEXT_WORDS} words for token safety. Full document structure is captured in the skeleton above.]`;
   }
 
   private formatSkeletonBlock(skeleton: DocumentSkeleton | null): string {
@@ -307,7 +318,7 @@ TASK: Summarize the following text and categorize it. Provide:
 
 ${lengthInstruction}
 
-Text: ${text}`;
+Text: ${this.truncateForQuestion(text)}`;
 
     let summary = '';
     for await (const chunk of this.llmService.streamMessage(provider, prompt)) {
@@ -515,13 +526,15 @@ Score: XX/100`;
       ? await getPromptReferenceBlock(analysisType, question.id)
       : '';
 
+    const questionText = this.truncateForQuestion(text);
+
     const prompt = `${scoringCalibration}
 
 ${this.completeInstructions}
 
 ${contextSection ? contextSection + '\n\n' : ''}${dbReferenceBlock ? dbReferenceBlock + '\n\n' : ''}${contextPrompt}Answer this question in connection with this text: ${question.question}
 
-Text: ${text}
+Text: ${questionText}
 
 ANSWER THIS QUESTION IN CONNECTION WITH THIS TEXT.
 
