@@ -221,7 +221,10 @@ ${ANTI_SYCOPHANCY_CLAUSES}`;
       const s = raw.indexOf('{');
       const e = raw.lastIndexOf('}');
       if (s === -1 || e === -1) throw new Error('No JSON object found in skeleton response');
-      return JSON.parse(raw.substring(s, e + 1)) as DocumentSkeleton;
+      const parsed = JSON.parse(raw.substring(s, e + 1));
+      // Validate it's actually a skeleton, not an API error object
+      if (!parsed.thesis || !Array.isArray(parsed.outline)) throw new Error('Response was not a valid skeleton (API error or wrong format)');
+      return parsed as DocumentSkeleton;
     } catch (err) {
       console.error('[Skeleton] Extraction failed:', err);
       return null;
@@ -495,8 +498,8 @@ END OF PROTOCOL — NOW APPLY IT TO THE TEXT BELOW
       : verbosity === 'micro'
         ? `RESPONSE LENGTH: One sentence — two at the absolute most. State your verdict and the score. Nothing else.`
         : verbosity === 'comprehensive'
-          ? `RESPONSE LENGTH: Write two or more full paragraphs. Include at least one direct illustrative quote from the text in each paragraph. Explore every dimension of the question thoroughly. Do not truncate.`
-          : `RESPONSE LENGTH: One focused paragraph. Include at least one direct illustrative quote from the text to support your assessment.`;
+          ? `RESPONSE LENGTH: Write two or more full paragraphs. In each paragraph: (1) state your sub-verdict on one dimension of the question, (2) quote the text directly — exact words in quotation marks — that constitutes your evidence, (3) explain step-by-step how that quotation drives your verdict. The derivation must be explicit: "This quote shows X because..." or "The phrase Y reveals Z in that...". Do not just illustrate — derive. Explore every dimension of the question thoroughly. Do not truncate.`
+          : `RESPONSE LENGTH: One focused paragraph. Include at least one direct quote from the text (exact words in quotation marks) and explicitly state how it supports your verdict.`;
 
     const skeletonBlock = this.formatSkeletonBlock(skeleton);
     const ledgerBlock = this.formatLedgerBlock(ledger);
