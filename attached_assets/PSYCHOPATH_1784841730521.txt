@@ -1,0 +1,90 @@
+MIND PROBE — ANALYSIS REPORT
+============================================================
+Generated: 7/23/2026, 5:20:45 PM
+
+TEXT SUMMARY & CATEGORIZATION
+----------------------------------------
+1. **Category**: Personal Writing  
+2. **Summary**: The author expresses profound emotional pain and betrayal towards someone perceived as selfish, recounting specific instances that highlight their disappointment and struggles. They reflect on their own journey of sobriety and the impact of their relationship with this individual.  
+3. **Length**: 891 characters, 157 words  
+4. **Style description**: The writing is raw and emotive, characterized by a stream-of-consciousness style that conveys deep personal anguish and frustration.
+
+Q: Is the author's thought-process organized?
+----------------------------------------
+The author's thought-process is disorganized and erratic, evidenced by abrupt shifts in focus, such as moving from expressing pain ("I cannot describe how much pain I am in") to accusing the other person of selfishness without clear transitions, complicating understanding and coherence. The lack of structured argument development and the presence of fragmented thoughts suggest a chaotic emotional state rather than a coherent line of reasoning. Score: 45.
+
+Q: Does the author have a victim complex? Or does he take responsibility for situations and try to solve them?
+----------------------------------------
+The author does not display a victim complex; instead, he takes responsibility for his situation, stating, "I already had a month sober" and reflecting on his own actions and struggles, while also expressing concern for others' welfare and calling out selfishness. Score: 85/100.
+
+Q: Judging by this passage, what is the author's approach to life?
+----------------------------------------
+The author's approach to life is characterized by a blend of intense emotional pain and a critical perspective on perceived selfishness in others, as evidenced by statements like "I cannot describe how much pain I am in" and "you should be ashamed of yourself," revealing a deep sense of betrayal and moral indignation. The author’s struggles with sobriety and personal accidents, such as burning their hand while cooking, further illustrate a chaotic and emotionally charged existence, underscored by a desire for sympathy that remains unfulfilled. Score: 82/100.
+
+Q: What are this person's greatest strengths?
+----------------------------------------
+The author's greatest strengths lie in their emotional intensity and self-awareness; they express profound pain and betrayal regarding another's selfishness, as seen in statements like "I hate you every bit of your sold soul for money," while reflecting on their own struggles with sobriety, highlighting resilience despite adversity, evidenced by "I already had a month sober." Score: 85/100.
+
+Q: What are this person's greatest weaknesses?
+----------------------------------------
+The author's greatest weaknesses include an inability to manage emotional distress effectively, as evidenced by statements like "I cannot describe how much pain I am in," and a tendency to project blame onto others, indicated by the repeated accusations of selfishness towards the other person. These weaknesses culminate in self-destructive behavior, highlighted by the description of an accident in the kitchen while feeling unwell, suggesting a lack of self-care during a vulnerable time; thus, the author's emotional turmoil directly impacts their well-being. Score: 80/100.
+
+Q: Is there evidence of outright delusion? If so, is the cause of the delusion psychotic in nature? For example, is it due to him thinking that there are gnomes living underneath his bed who control the stock market? Or is it internal conflict (e.g. due to wishful thinking or, on the contrary, to a defensive negativism that the author defensively projects onto reality)? Or, supposing that delusion is present, is it due to something more innocuous, such as "lover's blindness" (especially during the honeymoon phase) or to naivete?
+----------------------------------------
+There is no evidence of outright delusion in this text; the author's intense emotional pain and clear expressions of betrayal and anger toward the other person are grounded in specific experiences and reactions rather than any psychotic thinking. The statements, such as "you should be ashamed of yourself" and "I hate you every bit of your sold soul for money," reflect a rational response to perceived selfishness rather than any distortion of reality. Score: 85/100.
+
+Q: What does this person likely consider to be success?
+----------------------------------------
+This person likely considers success to be measured by loyalty and emotional connection, viewing the betrayal and selfishness of the other party as a profound failure, as indicated by phrases such as "you could give a shit if your own sister got legal reprisals" and "I hate you every bit of your sold soul for money," suggesting that personal integrity and familial responsibility are paramount to their definition of success. Score: 80/100.
+
+Q: What does this person consider to be failure?
+----------------------------------------
+The author considers failure to be the betrayal of familial loyalty and the inability to act selflessly in critical moments, as highlighted by the accusation, "you could give a shit if your own sister got legal reprisals," indicating that the author's expectations of compassion and support were not met. The score is 85/100.
+
+Q: How does this person deal with adversity?
+----------------------------------------
+The author deals with adversity by expressing intense emotional pain and disappointment, channeling their feelings into a critique of another person's selfishness, as seen in statements like "you could give a shit if your own sister got legal reprisals" and "you should be ashamed of yourself." The narrative reveals a struggle for sympathy, indicated by "just wanted a symphony (sympathy) for the devil—and that is you," while simultaneously reflecting on personal challenges, such as a month of sobriety and a painful cooking accident. Score: 75/100.
+
+Q: When this person decompensates, how does he likely do so?
+----------------------------------------
+The author likely decompensates through intense emotional outbursts and physical accidents, as evidenced by their expression of deep pain and frustration—"I cannot describe how much pain I am in"—and the incident of burning their hand while cooking, which reflects both emotional distress and a lack of control. The overall tone suggests a volatile reaction to stressors, revealing a pattern of emotional collapse triggered by interpersonal conflicts and self-reflection. Score: 85/100.
+
+Q: What kind of significant other would be ideal for him?
+----------------------------------------
+The ideal significant other for the author would be someone who demonstrates empathy and emotional support, as the author expresses deep pain and disappointment in the perceived selfishness of their counterpart, stating, "you should be ashamed of yourself," indicating a desire for accountability and emotional understanding. The score is 80/100, reflecting the author's need for a partner who acknowledges their struggles and fosters a supportive environment rather than one marked by emotional manipulation and neglect.
+
+Q: What is this user's current emotional state — i.e. his state in writing this passage?
+----------------------------------------
+The user's emotional state is one of profound pain and betrayal, highlighted by statements such as "I cannot describe how much pain I am in" and "I hate you every bit of your sold soul for money," indicating intense feelings of resentment and disappointment towards the perceived selfishness of the other person. Score: 90/100.
+
+Q: So far as we can tell from this passage, what is this user's general emotional state?
+----------------------------------------
+The user's general emotional state is one of profound pain and betrayal, as indicated by phrases like "I cannot describe how much pain I am in" and "I hate you every bit of your sold soul for money," revealing deep resentment and disappointment directed towards someone perceived as selfish and unempathetic. The emotional turmoil is compounded by references to personal struggles with sobriety and physical pain, further illustrating a chaotic internal landscape. Score: 90/100.
+
+Q: What is his likely career? And if he has a career already that is mentioned, is that career right for him?
+----------------------------------------
+The author is likely in a career that involves academia or a professional field requiring analytical skills, as indicated by the reference to "assistant professor" and the structured way they articulate grievances, suggesting familiarity with complex interpersonal dynamics and legal matters. However, the emotional turmoil and intense personal struggles revealed in the text indicate a disconnect between his professional life and personal well-being, as seen in statements like "I have been suffering since I got home" and "I just became worried you would put your own sister in serious jeopardy." Score: 75/100.
+
+Q: What does he most detest in people?
+----------------------------------------
+He most detests selfishness, as evidenced by his accusation that the other person "could give a shit if your own sister got legal reprisals" and his condemnation of their refusal to take a call from a dying woman due to personal ambition. The score is 90/100.
+
+Q: What conclusions would you draw about the configuration and nature of his libido?
+----------------------------------------
+The author's libido appears to be deeply entwined with emotional pain and frustration, as indicated by phrases like "I cannot describe how much pain I am in" and "I hate you every bit of your sold soul for money," suggesting a complex interplay of resentment and longing for connection that is currently manifesting as anger and self-blame. This configuration hints at a suppressed desire for empathy and validation, juxtaposed against the backdrop of intense disappointment and perceived betrayal from someone close, particularly evident in the accusation of selfishness for prioritizing personal status over familial obligations. Score: 85/100.
+
+Q: Does he have any psychiatric disorders? And if he did have — i.e. if he were to decompensate to the point where he had one — what would it be?
+----------------------------------------
+The author exhibits signs of intense emotional distress, characterized by profound pain and anger directed towards another person, suggesting a potential for major depressive disorder or an anxiety disorder; this is evidenced by statements such as "I cannot describe how much pain I am in" and "I hate you every bit of your sold soul for money." If the author were to decompensate, they might experience increased emotional instability and physical accidents, as indicated by their mention of a "sinus infection dizziness" and a "burnt hand," reflecting a pattern of maladaptive coping mechanisms. Score: 80/100.
+
+Q: Does this person have a sense of humor?
+----------------------------------------
+The author does not exhibit a sense of humor; instead, the tone is overwhelmingly serious and filled with intense emotional pain, as evidenced by statements like "I cannot describe how much pain I am in" and "I hate you every bit of your sold soul for money." The absence of any humorous or light-hearted expressions further underscores the author's deep distress and frustration. Score: 10/100.
+
+Q: What is the biggest misconception people have about the author?
+----------------------------------------
+The biggest misconception people have about the author is that he is simply a victim of circumstance; in reality, he is deeply self-aware and critical of others' selfishness, as evidenced by his statements like "you should be ashamed of yourself" and "I hate you every bit of your sold soul for money," indicating a profound recognition of moral failings in others while grappling with his own emotional pain. Score: 90/100.
+
+Q: What more than anything else stands between this person and his dreams?
+----------------------------------------
+The primary barrier standing between this person and his dreams is the overwhelming emotional pain stemming from perceived betrayal and selfishness of others, exemplified by his statement, "I hate you every bit of your sold soul for money," indicating intense resentment that distracts him from pursuing his goals. Score: 85/100.
