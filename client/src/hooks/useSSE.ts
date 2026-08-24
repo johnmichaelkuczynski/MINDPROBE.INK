@@ -1,5 +1,25 @@
 import { useEffect, useRef, useState } from 'react';
 
+function mergeLatestEvent<T>(events: T[], incoming: T): T[] {
+  const event = incoming as any;
+  if (event?.type !== 'summary' && event?.type !== 'question' && event?.type !== 'skeleton') {
+    return [...events, incoming];
+  }
+
+  const key = event.type === 'question'
+    ? `${event.type}:${event.data?.questionId ?? ''}`
+    : event.type;
+  const existingIndex = events.findIndex((item: any) => {
+    const itemKey = item?.type === 'question'
+      ? `${item.type}:${item.data?.questionId ?? ''}`
+      : item?.type;
+    return itemKey === key;
+  });
+
+  if (existingIndex < 0) return [...events, incoming];
+  return events.map((item, index) => index === existingIndex ? incoming : item);
+}
+
 export function useSSE<T>(url: string | null, onMessage?: (data: T) => void) {
   const [data, setData] = useState<T[]>([]);
   const [isConnected, setIsConnected] = useState(false);
@@ -36,7 +56,7 @@ export function useSSE<T>(url: string | null, onMessage?: (data: T) => void) {
     eventSource.onmessage = (event) => {
       try {
         const parsedData = JSON.parse(event.data) as T;
-        setData(prev => [...prev, parsedData]);
+        setData(prev => mergeLatestEvent(prev, parsedData));
         onMessage?.(parsedData);
 
         // Close permanently when the server signals done or error

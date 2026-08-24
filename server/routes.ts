@@ -111,16 +111,28 @@ export async function registerRoutes(app: Express): Promise<Server> {
       // Set up Server-Sent Events
       res.writeHead(200, {
         'Content-Type': 'text/event-stream',
-        'Cache-Control': 'no-cache',
+        'Cache-Control': 'no-cache, no-transform',
         'Connection': 'keep-alive',
+        'X-Accel-Buffering': 'no',
         'Access-Control-Allow-Origin': '*',
         'Access-Control-Allow-Headers': 'Cache-Control'
       });
+      res.flushHeaders();
+
+      // Keep long coherence passes alive without creating client-visible events.
+      const heartbeat = setInterval(() => {
+        if (!res.writableEnded) res.write(': keep-alive\n\n');
+      }, 15000);
+      const latestResults = new Map<string, any>();
+      const rememberLatest = (result: any) => {
+        const key = result.type === 'question'
+          ? `question:${result.data?.questionId ?? latestResults.size}`
+          : result.type;
+        latestResults.set(key, result);
+      };
 
       // Process analysis with streaming
       try {
-        const results: any[] = [];
-
         // Detect compare context
         let compareCtx: any = null;
         try {
@@ -148,7 +160,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
               analysis.llmProvider as LLMProvider
             )) {
               res.write(`data: ${JSON.stringify(result)}\n\n`);
-              results.push(result);
+              rememberLatest(result);
             }
           }
         } else {
@@ -160,20 +172,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
           )) {
             // Send each result as it comes in
             res.write(`data: ${JSON.stringify(result)}\n\n`);
-            results.push(result);
+            rememberLatest(result);
           }
         }
 
         // Update analysis with final results
-        await storage.updateAnalysisResults(id, results, "completed");
+        await storage.updateAnalysisResults(id, Array.from(latestResults.values()), "completed");
         
         // Send completion event
         res.write(`data: ${JSON.stringify({ type: 'complete', data: { analysisId: id } })}\n\n`);
         
       } catch (streamError) {
         console.error("Streaming error:", streamError);
-        await storage.updateAnalysisResults(id, [], "error");
-        res.write(`data: ${JSON.stringify({ type: 'error', data: { message: 'Analysis failed' } })}\n\n`);
+        await storage.updateAnalysisResults(id, Array.from(latestResults.values()), "error");
+        res.write(`data: ${JSON.stringify({
+          type: 'error',
+          data: { message: 'Analysis stream was interrupted. Partial results have been preserved.', interrupted: true }
+        })}\n\n`);
+      } finally {
+        clearInterval(heartbeat);
       }
 
       res.end();

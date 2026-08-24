@@ -17,6 +17,7 @@ interface ProcessedResult {
   questionId?: string;
   question?: string;
   complete: boolean;
+  interrupted?: boolean;
 }
 
 interface SkeletonStatus {
@@ -96,6 +97,9 @@ export function RealTimeResults({ analysisId, isStreaming, onComplete }: RealTim
       onComplete?.();
     } else if (event.type === 'error') {
       console.log('Analysis error event received:', event);
+      setResults(prev => prev.map(result =>
+        result.complete ? result : { ...result, complete: true, interrupted: true }
+      ));
       setStreamingStatus("Error");
     } else {
       console.log('Unknown event type received:', event);
@@ -343,9 +347,9 @@ export function RealTimeResults({ analysisId, isStreaming, onComplete }: RealTim
             </div>
           )}
 
-          {results.map((result, index) => (
+          {results.map((result) => (
             <div 
-              key={`${result.type}-${result.questionId || 'summary'}-${index}`}
+              key={`${result.type}-${result.questionId || 'summary'}`}
               className={`analysis-section border-l-4 pl-4 transition-all duration-300 ${
                 result.type === 'summary' ? 'border-primary-blue' : 
                 result.complete ? 'border-green-400' : 'border-yellow-400 opacity-70'
@@ -364,6 +368,12 @@ export function RealTimeResults({ analysisId, isStreaming, onComplete }: RealTim
                     <div className="flex items-center space-x-2 mt-2">
                       <Loader2 className="h-4 w-4 animate-spin text-primary-blue" />
                       <span className="text-sm text-gray-500">Generating response...</span>
+                    </div>
+                  )}
+                  {result.interrupted && (
+                    <div className="flex items-center space-x-2 mt-3 text-amber-700">
+                      <AlertCircle className="h-4 w-4 shrink-0" />
+                      <span className="text-sm">Stream interrupted. The text received so far has been preserved.</span>
                     </div>
                   )}
                 </div>

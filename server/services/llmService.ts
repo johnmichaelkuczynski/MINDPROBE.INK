@@ -22,6 +22,22 @@ export interface LLMResponse {
   provider: LLMProvider;
 }
 
+const FALLBACK_CHUNK_WORDS = 300;
+
+export function chunkTextByWords(text: string, maxWords = FALLBACK_CHUNK_WORDS): string[] {
+  if (!text) return [];
+  if (!Number.isInteger(maxWords) || maxWords < 1) {
+    throw new Error('maxWords must be a positive integer');
+  }
+
+  const wordsWithSpacing = text.match(/\S+\s*/g) ?? [];
+  const chunks: string[] = [];
+  for (let i = 0; i < wordsWithSpacing.length; i += maxWords) {
+    chunks.push(wordsWithSpacing.slice(i, i + maxWords).join(''));
+  }
+  return chunks;
+}
+
 export class LLMService {
   private openai: OpenAI;
   private anthropic: Anthropic;
@@ -64,27 +80,68 @@ export class LLMService {
     message: string,
     systemPrompt?: string
   ): AsyncGenerator<string, void, unknown> {
+    let source: AsyncGenerator<string, void, unknown>;
     switch (provider) {
       case "zhi1": // OpenAI
-        yield* this.streamOpenAIMessage(message, systemPrompt);
+        source = this.streamOpenAIMessage(message, systemPrompt);
         break;
       case "zhi2": // Anthropic
-        yield* this.streamAnthropicMessage(message, systemPrompt);
+        source = this.streamAnthropicMessage(message, systemPrompt);
         break;
       case "zhi3": // DeepSeek
-        yield* this.streamDeepSeekMessage(message, systemPrompt);
+        source = this.streamDeepSeekMessage(message, systemPrompt);
         break;
       case "zhi4": // Perplexity
-        yield* this.streamPerplexityMessage(message, systemPrompt);
+        source = this.streamPerplexityMessage(message, systemPrompt);
         break;
       case "zhi5": // Venice
-        yield* this.streamVeniceMessage(message, systemPrompt);
+        source = this.streamVeniceMessage(message, systemPrompt);
         break;
       case "zhi6": // Grok (xAI)
-        yield* this.streamGrokMessage(message, systemPrompt);
+        source = this.streamGrokMessage(message, systemPrompt);
         break;
       default:
         throw new Error(`Unknown LLM provider: ${provider}`);
+    }
+
+    let emitted = false;
+    let nativeStreamError: Error | null = null;
+    try {
+      for await (const chunk of source) {
+        if (!chunk) continue;
+        if (chunk.startsWith('Error:')) {
+          nativeStreamError = new Error(chunk.replace(/^Error:\s*/, ''));
+          if (emitted) throw nativeStreamError;
+          break;
+        }
+        emitted = true;
+        yield chunk;
+      }
+    } catch (error) {
+      if (emitted) throw error;
+      nativeStreamError = error instanceof Error ? error : new Error('Native stream failed');
+      console.error(`[${provider}] Native stream unavailable, using bounded fallback:`, error);
+    }
+
+    if (emitted) return;
+    if (nativeStreamError) {
+      console.error(`[${provider}] Native stream unavailable, using bounded fallback:`, nativeStreamError.message);
+    }
+
+    try {
+      const response = await this.sendMessage(provider, message, systemPrompt);
+      const chunks = chunkTextByWords(response.content);
+      if (chunks.length === 0) {
+        throw new Error(`No response received from ${provider}`);
+      }
+      for (const chunk of chunks) {
+        yield chunk;
+        // Give SSE a chance to flush each bounded fallback chunk separately.
+        await new Promise<void>(resolve => setTimeout(resolve, 0));
+      }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      throw new Error(`${provider} API failed - ${errorMessage}. Please try a different LLM provider.`);
     }
   }
 
