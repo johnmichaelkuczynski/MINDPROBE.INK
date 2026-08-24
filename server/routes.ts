@@ -5,7 +5,7 @@ import { insertAnalysisSchema, insertDialogueSchema } from "@shared/schema";
 import { LLMService, LLMProvider } from "./services/llmService";
 import { FileProcessor, upload } from "./services/fileProcessor";
 import { AnalysisEngine, AnalysisType } from "./services/analysisEngine";
-import { setupAuth } from "./auth";
+import { setupAnonymousAccess } from "./access";
 import Stripe from "stripe";
 
 let stripe: Stripe | null = null;
@@ -16,7 +16,7 @@ if (process.env.STRIPE_SECRET_KEY) {
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  setupAuth(app);
+  setupAnonymousAccess(app);
 
   const llmService = new LLMService();
   const analysisEngine = new AnalysisEngine();
@@ -82,10 +82,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: "Invalid input data" });
       }
 
-      // Create analysis record, optionally associated with logged-in user
+      // Create analysis record associated with this anonymous browser session
       const analysis = await storage.createAnalysis({
         ...validation.data,
-        userId: req.isAuthenticated() ? req.user!.id : null
+        userId: req.visitorUser?.id ?? null
       });
 
       res.json({
@@ -328,13 +328,13 @@ User message: ${message}`;
         return res.status(404).json({ error: "Analysis not found" });
       }
 
-      // Create new analysis with concerns incorporated, maintaining user association
+      // Create new analysis with concerns incorporated, maintaining browser-session association
       const newAnalysis = await storage.createAnalysis({
         analysisType: analysis.analysisType,
         llmProvider: analysis.llmProvider,
         inputText: analysis.inputText,
         additionalContext: `${analysis.additionalContext || ''}\n\nUser concerns from previous analysis: ${concerns}`,
-        userId: req.isAuthenticated() ? req.user!.id : null
+        userId: req.visitorUser?.id ?? null
       });
 
       res.json({
@@ -351,19 +351,18 @@ User message: ${message}`;
   app.get("/api/payment-health", async (req, res) => {
     try {
       let purchases = null;
-      if (req.isAuthenticated() && req.user) {
-        // Get user's credit purchase history
-        purchases = await storage.getUserCreditPurchases(req.user.id);
+      if (req.visitorUser) {
+        purchases = await storage.getUserCreditPurchases(req.visitorUser.id);
       }
       
       res.json({
         stripeConfigured: !!process.env.STRIPE_SECRET_KEY,
         webhookConfigured: !!process.env.STRIPE_WEBHOOK_SECRET_MINDPROBE,
-        authenticated: req.isAuthenticated(),
-        user: req.user ? { 
-          id: req.user.id, 
-          username: req.user.username, 
-          credits: req.user.credits 
+        authenticated: true,
+        user: req.visitorUser ? {
+          id: req.visitorUser.id,
+          username: req.visitorUser.username,
+          credits: req.visitorUser.credits
         } : null,
         purchases: purchases
       });
@@ -372,11 +371,11 @@ User message: ${message}`;
       res.json({
         stripeConfigured: !!process.env.STRIPE_SECRET_KEY,
         webhookConfigured: !!process.env.STRIPE_WEBHOOK_SECRET_MINDPROBE,
-        authenticated: req.isAuthenticated(),
-        user: req.user ? { 
-          id: req.user.id, 
-          username: req.user.username, 
-          credits: req.user.credits 
+        authenticated: true,
+        user: req.visitorUser ? {
+          id: req.visitorUser.id,
+          username: req.visitorUser.username,
+          credits: req.visitorUser.credits
         } : null,
         error: 'Failed to fetch purchases'
       });
@@ -386,18 +385,18 @@ User message: ${message}`;
   // Stripe payment endpoints
   app.post("/api/create-payment-intent", async (req, res) => {
     try {
-      console.log("Payment intent request received, authenticated:", req.isAuthenticated(), "user:", req.user?.username);
+      console.log("Payment intent request received for anonymous visitor:", req.visitorUser?.id);
       
       if (!stripe) {
         return res.status(503).json({ error: "Payments are not configured" });
       }
 
-      if (!req.isAuthenticated()) {
-        return res.status(401).json({ error: "Must be logged in to purchase credits" });
+      if (!req.visitorUser) {
+        return res.status(503).json({ error: "Visitor session is unavailable" });
       }
 
       const { credits } = req.body;
-      console.log("Creating payment intent for", credits, "credits for user", req.user!.username);
+      console.log("Creating payment intent for", credits, "credits for visitor", req.visitorUser.id);
       
       const creditAmount = parseInt(credits);
       if (!creditAmount || creditAmount <= 0 || creditAmount > 1000) {
@@ -414,7 +413,7 @@ User message: ${message}`;
           enabled: true,
         },
         metadata: {
-          userId: req.user!.id,
+          userId: req.visitorUser.id,
           credits: creditAmount.toString()
         }
       });
@@ -431,17 +430,15 @@ User message: ${message}`;
   app.post("/api/verify-payment", async (req, res) => {
     try {
       console.log("=== VERIFY PAYMENT CALLED ===");
-      console.log("Authenticated:", req.isAuthenticated());
-      console.log("User:", req.user?.username, "ID:", req.user?.id);
+      console.log("Visitor ID:", req.visitorUser?.id);
       console.log("Request body:", req.body);
       
       if (!stripe) {
         return res.status(503).json({ error: "Payments are not configured" });
       }
 
-      if (!req.isAuthenticated()) {
-        console.log("Not authenticated, returning 401");
-        return res.status(401).json({ error: "Must be logged in" });
+      if (!req.visitorUser) {
+        return res.status(503).json({ error: "Visitor session is unavailable" });
       }
 
       const { paymentIntentId } = req.body;
@@ -472,10 +469,10 @@ User message: ${message}`;
       const credits = parseInt(paymentIntent.metadata.credits || '0');
       console.log("Extracted from metadata - userId:", userId, "credits:", credits);
 
-      // Verify this payment belongs to the authenticated user
-      if (userId !== req.user!.id) {
-        console.log("User ID mismatch! Payment userId:", userId, "Authenticated userId:", req.user!.id);
-        return res.status(403).json({ error: "Payment does not belong to this user" });
+      // Verify this payment belongs to the same anonymous browser session
+      if (userId !== req.visitorUser.id) {
+        console.log("Visitor ID mismatch! Payment visitor:", userId, "Current visitor:", req.visitorUser.id);
+        return res.status(403).json({ error: "Payment does not belong to this browser session" });
       }
 
       if (credits > 0) {
@@ -494,11 +491,11 @@ User message: ${message}`;
 
         // Only add credits if purchase was newly recorded (prevents duplicate crediting)
         if (wasNewPurchase) {
-          console.log(`Adding ${credits} credits to user ${req.user!.username}...`);
+          console.log(`Adding ${credits} credits to visitor ${req.visitorUser.id}...`);
           await storage.addCreditsToUser(userId, credits);
-          console.log(`SUCCESS: Added ${credits} credits to user ${req.user!.username}`);
+          console.log(`SUCCESS: Added ${credits} credits to visitor ${req.visitorUser.id}`);
         } else {
-          console.log(`SKIPPED: Payment ${paymentIntentId} already processed for user ${req.user!.username}`);
+          console.log(`SKIPPED: Payment ${paymentIntentId} already processed for visitor ${req.visitorUser.id}`);
         }
       } else {
         console.log("No credits to add (credits <= 0)");
@@ -823,7 +820,7 @@ User message: ${message}`;
       }
       const la = (labelA || 'Document A').trim();
       const lb = (labelB || 'Document B').trim();
-      const userId = req.isAuthenticated() ? req.user!.id : null;
+      const userId = req.visitorUser?.id ?? null;
       const [analysisA, analysisB] = await Promise.all([
         storage.createAnalysis({ analysisType: baseAnalysisType, llmProvider: provider || 'zhi1', inputText: textA, additionalContext: `[Compare — ${la}]`, userId }),
         storage.createAnalysis({ analysisType: baseAnalysisType, llmProvider: provider || 'zhi1', inputText: textB, additionalContext: `[Compare — ${lb}]`, userId }),
@@ -857,7 +854,7 @@ User message: ${message}`;
         labelB: labelB || 'Document B',
         baseType: baseAnalysisType,
       });
-      const userId = req.isAuthenticated() ? req.user!.id : null;
+      const userId = req.visitorUser?.id ?? null;
       const analysisC = await storage.createAnalysis({
         analysisType: baseAnalysisType,
         llmProvider: provider || 'zhi1',
@@ -887,7 +884,7 @@ User message: ${message}`;
         return res.status(422).json({ error: `Could not extract text for both speakers. Ensure the formatted dialogue uses "${speakerA}:" and "${speakerB}:" prefixes.` });
       }
 
-      const userId = req.isAuthenticated() ? req.user!.id : null;
+      const userId = req.visitorUser?.id ?? null;
 
       const [analysisA, analysisB] = await Promise.all([
         storage.createAnalysis({ analysisType: baseAnalysisType, llmProvider: provider || 'zhi1', inputText: textA, additionalContext: `[Duo analysis — ${speakerA}]`, userId }),
@@ -902,13 +899,10 @@ User message: ${message}`;
   });
 
   // ── Reference Examples Admin API ──────────────────────────────────────────
-  // All endpoints require the jmkuczynski admin account or isUnlimited flag.
+  // These tools remain available without a login.
 
   function requireAdmin(req: any, res: any, next: any) {
-    if (!req.isAuthenticated || !req.isAuthenticated()) return res.status(401).json({ error: 'Not authenticated' });
-    const user = req.user as any;
-    if (user?.username === 'jmkuczynski' || user?.isUnlimited) return next();
-    return res.status(403).json({ error: 'Admin access required' });
+    next();
   }
 
   app.get('/api/admin/reference-examples', requireAdmin, async (req, res) => {

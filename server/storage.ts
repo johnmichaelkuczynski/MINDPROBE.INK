@@ -1,17 +1,13 @@
 import { type User, type InsertUser, type UserVisit, type AnalysisResult, type InsertAnalysis, type DialogueMessage, type InsertDialogue, type ReferenceExample, type InsertReferenceExample, users, userVisits, analysisResults, dialogueMessages, referenceExamples } from "@shared/schema";
-import { eq, desc, isNull, gte } from "drizzle-orm";
+import { eq, desc, isNull, gte, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/neon-serverless";
 import { Pool, neonConfig } from "@neondatabase/serverless";
 import ws from "ws";
-import session from "express-session";
-import connectPgSimple from "connect-pg-simple";
 
 neonConfig.webSocketConstructor = ws;
 
 const pool = new Pool({ connectionString: process.env.DATABASE_URL || process.env.NEON_DATABASE_URL! });
 const db = drizzle({ client: pool });
-
-const PostgresSessionStore = connectPgSimple(session);
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;
@@ -20,6 +16,7 @@ export interface IStorage {
   getUserByGoogleId(googleId: string): Promise<User | undefined>;
   getUserByEmail(email: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
+  createAnonymousUser(username: string): Promise<User>;
   createUserWithGoogle(data: { username: string; googleId: string; email: string | null; displayName: string | null }): Promise<User>;
   updateUserGoogle(id: string, data: { googleId?: string; displayName?: string | null }): Promise<User>;
   addCreditsToUser(userId: string, credits: number): Promise<void>;
@@ -27,6 +24,7 @@ export interface IStorage {
   recordVisit(userId: string, email: string | null): Promise<void>;
   getVisits(limit: number): Promise<UserVisit[]>;
   getVisitTimestampsSince(since: Date | null): Promise<string[]>;
+  getVisitCount(): Promise<number>;
 
   createAnalysis(analysis: InsertAnalysis & { userId?: string | null }): Promise<AnalysisResult>;
   getAnalysis(id: string): Promise<AnalysisResult | undefined>;
@@ -44,19 +42,9 @@ export interface IStorage {
   deleteReferenceExample(id: string): Promise<void>;
   listAllReferenceExamples(): Promise<ReferenceExample[]>;
 
-  sessionStore: any;
 }
 
 export class DatabaseStorage implements IStorage {
-  sessionStore: any;
-
-  constructor() {
-    this.sessionStore = new PostgresSessionStore({
-      pool,
-      createTableIfMissing: true
-    });
-  }
-
   async getUser(id: string): Promise<User | undefined> {
     const result = await db.select().from(users).where(eq(users.id, id)).limit(1);
     return result[0];
@@ -83,6 +71,14 @@ export class DatabaseStorage implements IStorage {
 
   async createUser(insertUser: InsertUser): Promise<User> {
     const result = await db.insert(users).values(insertUser).returning();
+    return result[0];
+  }
+
+  async createAnonymousUser(username: string): Promise<User> {
+    const result = await db.insert(users).values({
+      username,
+      password: null,
+    }).returning();
     return result[0];
   }
 
@@ -127,6 +123,11 @@ export class DatabaseStorage implements IStorage {
       ? await db.select({ visitedAt: userVisits.visitedAt }).from(userVisits).where(gte(userVisits.visitedAt, since))
       : await db.select({ visitedAt: userVisits.visitedAt }).from(userVisits);
     return rows.map((r) => r.visitedAt?.toISOString() ?? new Date().toISOString());
+  }
+
+  async getVisitCount(): Promise<number> {
+    const result = await db.select({ count: sql<number>`count(*)` }).from(userVisits);
+    return Number(result[0]?.count ?? 0);
   }
 
   async createAnalysis(insertAnalysis: InsertAnalysis & { userId?: string | null }): Promise<AnalysisResult> {

@@ -8,14 +8,13 @@ import { ChunkSelector } from "@/components/ChunkSelector";
 import { DuoPanel } from "@/components/DuoPanel";
 import { ComparePanel } from "@/components/ComparePanel";
 import { TractatusTreeDialog } from "@/components/TractatusTreeDialog";
+import { VisitorCounter } from "@/components/VisitorCounter";
 import { AnalysisType, LLMProvider, isDuoType } from "@/types/analysis";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useToast } from "@/hooks/use-toast";
-import { useUser } from "@/hooks/useUser";
-import { Brain, HelpCircle, Settings, Plus, LogOut } from "lucide-react";
+import { Brain, HelpCircle, Settings, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TextChunkingService, TextChunk } from "@shared/textUtils";
-import { SiGoogle } from "react-icons/si";
 
 export default function Home() {
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<AnalysisType>('cognitive');
@@ -41,7 +40,6 @@ export default function Home() {
   const [showChunkSelector, setShowChunkSelector] = useState(false);
   
   const { toast } = useToast();
-  const { user, authenticated, isLoading: isAuthLoading, logoutMutation } = useUser();
   const {
     currentAnalysisId,
     startAnalysis,
@@ -258,6 +256,7 @@ export default function Home() {
               <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
                 Cognitive Profiler
               </span>
+              <VisitorCounter />
             </div>
             <div className="flex items-center space-x-4">
               <Button 
@@ -271,37 +270,6 @@ export default function Home() {
                 New Analysis
               </Button>
 
-              {!isAuthLoading && (
-                authenticated && user ? (
-                  <div className="flex items-center space-x-2">
-                    <span className="text-sm text-gray-700 font-medium hidden sm:block" data-testid="text-display-name">
-                      {user.displayName || user.username}
-                    </span>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => logoutMutation.mutate()}
-                      disabled={logoutMutation.isPending}
-                      className="text-gray-600 border-gray-300 hover:bg-gray-100"
-                      data-testid="button-logout"
-                    >
-                      <LogOut className="h-4 w-4 mr-1" />
-                      Sign out
-                    </Button>
-                  </div>
-                ) : (
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    onClick={() => { window.location.href = "/api/auth/google"; }}
-                    className="flex items-center space-x-2 border-gray-300 hover:bg-gray-50 text-gray-700"
-                    data-testid="button-google-login"
-                  >
-                    <SiGoogle className="h-4 w-4 text-[#4285F4]" />
-                    <span>Sign in with Google</span>
-                  </Button>
-                )
-              )}
             </div>
           </div>
         </div>

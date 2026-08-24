@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { useAuth } from "@/hooks/use-auth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CreditCard, ArrowLeft } from "lucide-react";
@@ -141,40 +140,21 @@ const PRICING_OPTIONS = [
 export default function Checkout() {
   const [clientSecret, setClientSecret] = useState("");
   const [selectedCredits, setSelectedCredits] = useState<number | null>(null);
-  const { user } = useAuth();
   const [, setLocation] = useLocation();
   const { toast } = useToast();
 
   useEffect(() => {
-    console.log('Checkout useEffect - user:', user?.username, 'authenticated:', !!user);
-    
-    if (!user) {
-      console.log('No user, redirecting to auth');
-      toast({
-        title: "Authentication required",
-        description: "Please log in to purchase credits",
-        variant: "destructive",
-      });
-      setLocation('/auth');
-      return;
-    }
-
     // Get credits from URL params if available
     const params = new URLSearchParams(window.location.search);
     const creditAmount = parseInt(params.get('credits') || '0');
     if (creditAmount > 0) {
       setSelectedCredits(creditAmount);
     }
-  }, [user, setLocation, toast]);
+  }, []);
 
   const handleSelectPackage = async (credits: number) => {
-    if (!user) {
-      console.error('No user found');
-      return;
-    }
-    
     console.log('=== HANDLE SELECT PACKAGE ===');
-    console.log('User:', user.username, 'Credits to buy:', credits);
+    console.log('Credits to buy:', credits);
     setSelectedCredits(credits);
 
     try {
@@ -233,10 +213,6 @@ export default function Checkout() {
       });
     }
   };
-
-  if (!user) {
-    return null;
-  }
 
   if (!STRIPE_KEY) {
     return (

@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { useAuth } from "@/hooks/use-auth";
 import { queryClient, apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
@@ -9,19 +8,10 @@ import { CheckCircle, Loader2, XCircle, AlertCircle } from "lucide-react";
 
 export default function CheckoutSuccess() {
   const [, setLocation] = useLocation();
-  const { user } = useAuth();
   const { toast } = useToast();
   const [verificationState, setVerificationState] = useState<'processing' | 'success' | 'failed' | 'error'>('processing');
 
   useEffect(() => {
-    console.log('CheckoutSuccess mounted, user:', user?.username);
-    
-    if (!user) {
-      console.log('No user, redirecting to auth');
-      setLocation('/auth');
-      return;
-    }
-
     // Get payment_intent from URL params (Stripe adds this on redirect)
     const params = new URLSearchParams(window.location.search);
     const paymentIntentId = params.get('payment_intent');
@@ -72,11 +62,7 @@ export default function CheckoutSuccess() {
       console.error('No payment_intent in URL');
       setVerificationState('error');
     }
-  }, [user, setLocation, toast]);
-
-  if (!user) {
-    return null;
-  }
+  }, [setLocation, toast]);
 
   if (verificationState === 'processing') {
     return (
