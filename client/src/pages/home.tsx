@@ -12,7 +12,7 @@ import { VisitorCounter } from "@/components/VisitorCounter";
 import { AnalysisType, LLMProvider, isDuoType } from "@/types/analysis";
 import { useAnalysis } from "@/hooks/useAnalysis";
 import { useToast } from "@/hooks/use-toast";
-import { Brain, HelpCircle, Settings, Plus } from "lucide-react";
+import { HelpCircle, Settings, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { TextChunkingService, TextChunk } from "@shared/textUtils";
 
@@ -251,7 +251,20 @@ export default function Home() {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <div className="flex items-center space-x-3">
-              <Brain className="text-primary-blue text-2xl h-8 w-8" />
+              <a
+                href="https://zhisystems.ai/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Visit ZHI Systems AI"
+                title="ZHI Systems AI"
+                className="shrink-0 rounded-md transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue focus-visible:ring-offset-2"
+              >
+                <img
+                  src="/zhi-logo.png"
+                  alt="ZHI"
+                  className="h-8 w-8 rounded-md object-contain shadow-sm"
+                />
+              </a>
               <h1 className="text-2xl font-bold text-text-primary">Mind Probe</h1>
               <span className="text-sm text-gray-500 bg-gray-100 px-2 py-1 rounded">
                 Cognitive Profiler
@@ -259,6 +272,15 @@ export default function Home() {
               <VisitorCounter />
             </div>
             <div className="flex items-center space-x-4">
+              <a
+                href="https://zhisystems.org/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-sm font-medium text-gray-600 hover:text-primary-blue transition-colors"
+                data-testid="link-contact-us"
+              >
+                Contact Us
+              </a>
               <Button 
                 onClick={handleNewAnalysis}
                 variant="outline" 
