@@ -24,9 +24,13 @@ declare global {
 export function setupAnonymousAccess(app: Express) {
   app.set("trust proxy", 1);
 
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is required for database and session storage");
+  }
+
   const PgSession = connectPgSimple(session);
   const pool = new pg.Pool({
-    connectionString: process.env.NEON_DATABASE_URL || process.env.DATABASE_URL,
+    connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false },
   });
 
@@ -50,8 +54,9 @@ export function setupAnonymousAccess(app: Express) {
       secret: process.env.SESSION_SECRET || "mindprobe-session-secret-dev-only",
       resave: false,
       saveUninitialized: false,
+      proxy: isProduction,
       cookie: {
-        secure: isProduction || !!process.env.REPLIT_DEV_DOMAIN,
+        secure: isProduction,
         httpOnly: true,
         sameSite: "lax",
         maxAge: 30 * 24 * 60 * 60 * 1000,

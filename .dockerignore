@@ -1,0 +1,12 @@
+.git
+.gitignore
+.replit
+replit.md
+node_modules
+dist
+.local
+.agents
+.env
+.env.*
+attached_assets
+*.log

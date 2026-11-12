@@ -1,13 +1,10 @@
 import { type User, type InsertUser, type UserVisit, type AnalysisResult, type InsertAnalysis, type DialogueMessage, type InsertDialogue, type ReferenceExample, type InsertReferenceExample, users, userVisits, analysisResults, dialogueMessages, referenceExamples } from "@shared/schema";
 import { eq, desc, isNull, gte, sql } from "drizzle-orm";
-import { drizzle } from "drizzle-orm/neon-serverless";
-import { Pool, neonConfig } from "@neondatabase/serverless";
-import ws from "ws";
+import { drizzle } from "drizzle-orm/node-postgres";
+import { Pool } from "pg";
 
-neonConfig.webSocketConstructor = ws;
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL || process.env.NEON_DATABASE_URL! });
-const db = drizzle({ client: pool });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const db = drizzle(pool);
 
 export interface IStorage {
   getUser(id: string): Promise<User | undefined>;

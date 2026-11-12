@@ -39,17 +39,25 @@ export function chunkTextByWords(text: string, maxWords = FALLBACK_CHUNK_WORDS):
 }
 
 export class LLMService {
-  private openai: OpenAI;
-  private anthropic: Anthropic;
+  private openai?: OpenAI;
+  private anthropic?: Anthropic;
 
-  constructor() {
-    this.openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY || process.env.ZHI1_API_KEY || "default_key",
-    });
+  private getOpenAIClient(): OpenAI {
+    if (!this.openai) {
+      const apiKey = process.env.OPENAI_API_KEY || process.env.ZHI1_API_KEY;
+      if (!apiKey) throw new Error("OPENAI_API_KEY or ZHI1_API_KEY is required to use ZHI 1");
+      this.openai = new OpenAI({ apiKey });
+    }
+    return this.openai;
+  }
 
-    this.anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY || process.env.ZHI2_API_KEY || "default_key",
-    });
+  private getAnthropicClient(): Anthropic {
+    if (!this.anthropic) {
+      const apiKey = process.env.ANTHROPIC_API_KEY || process.env.ZHI2_API_KEY;
+      if (!apiKey) throw new Error("ANTHROPIC_API_KEY or ZHI2_API_KEY is required to use ZHI 2");
+      this.anthropic = new Anthropic({ apiKey });
+    }
+    return this.anthropic;
   }
 
   async sendMessage(
@@ -152,7 +160,7 @@ export class LLMService {
     }
     messages.push({ role: "user", content: message });
 
-    const response = await this.openai.chat.completions.create({
+    const response = await this.getOpenAIClient().chat.completions.create({
       model: DEFAULT_OPENAI_MODEL,
       messages,
     });
@@ -173,7 +181,7 @@ export class LLMService {
 
       console.log(`[OpenAI] Starting stream for message length: ${message.length}`);
       
-      const stream = await this.openai.chat.completions.create({
+      const stream = await this.getOpenAIClient().chat.completions.create({
         model: DEFAULT_OPENAI_MODEL,
         messages,
         stream: true,
@@ -204,7 +212,7 @@ export class LLMService {
   }
 
   private async sendAnthropicMessage(message: string, systemPrompt?: string): Promise<LLMResponse> {
-    const response = await this.anthropic.messages.create({
+    const response = await this.getAnthropicClient().messages.create({
       model: DEFAULT_ANTHROPIC_MODEL,
       max_tokens: 1024,
       system: systemPrompt,
@@ -221,7 +229,7 @@ export class LLMService {
     try {
       console.log(`[Anthropic] Starting stream for message length: ${message.length}`);
       
-      const stream = await this.anthropic.messages.create({
+      const stream = await this.getAnthropicClient().messages.create({
         model: DEFAULT_ANTHROPIC_MODEL,
         max_tokens: 2000,
         system: systemPrompt,

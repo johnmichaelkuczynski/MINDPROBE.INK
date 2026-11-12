@@ -8,11 +8,12 @@ import { AnalysisEngine, AnalysisType } from "./services/analysisEngine";
 import { setupAnonymousAccess } from "./access";
 import Stripe from "stripe";
 
-let stripe: Stripe | null = null;
-if (process.env.STRIPE_SECRET_KEY) {
-  stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-} else {
-  console.warn('STRIPE_SECRET_KEY is not set — payment endpoints are disabled until it is configured.');
+let stripeClient: Stripe | null | undefined;
+function getStripeClient(): Stripe | null {
+  if (stripeClient !== undefined) return stripeClient;
+  const secretKey = process.env.STRIPE_SECRET_KEY;
+  stripeClient = secretKey ? new Stripe(secretKey) : null;
+  return stripeClient;
 }
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -404,6 +405,7 @@ User message: ${message}`;
     try {
       console.log("Payment intent request received for anonymous visitor:", req.visitorUser?.id);
       
+      const stripe = getStripeClient();
       if (!stripe) {
         return res.status(503).json({ error: "Payments are not configured" });
       }
@@ -450,6 +452,7 @@ User message: ${message}`;
       console.log("Visitor ID:", req.visitorUser?.id);
       console.log("Request body:", req.body);
       
+      const stripe = getStripeClient();
       if (!stripe) {
         return res.status(503).json({ error: "Payments are not configured" });
       }
@@ -530,6 +533,7 @@ User message: ${message}`;
   // Stripe webhook endpoint (needs raw body for signature verification)
   app.post("/api/stripe-webhook", async (req, res) => {
     const sig = req.headers['stripe-signature'];
+    const stripe = getStripeClient();
 
     if (!stripe || !sig || !process.env.STRIPE_WEBHOOK_SECRET_MINDPROBE) {
       return res.status(400).send('Webhook signature verification failed');
@@ -681,7 +685,7 @@ User message: ${message}`;
     }
 
     // Stripe
-    checks.stripe = stripe
+    checks.stripe = getStripeClient()
       ? { status: "ok", message: "Configured" }
       : { status: "error", message: "STRIPE_SECRET_KEY not set" };
 

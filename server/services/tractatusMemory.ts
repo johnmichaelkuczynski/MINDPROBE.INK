@@ -1,9 +1,6 @@
-import { Pool, neonConfig } from "@neondatabase/serverless";
-import ws from "ws";
+import { Pool } from "pg";
 
-neonConfig.webSocketConstructor = ws;
-
-const pool = new Pool({ connectionString: process.env.DATABASE_URL || process.env.NEON_DATABASE_URL! });
+const pool = new Pool({ connectionString: process.env.DATABASE_URL });
 
 export interface DocumentSkeleton {
   thesis: string;
