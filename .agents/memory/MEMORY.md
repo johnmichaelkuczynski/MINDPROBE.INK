@@ -3,3 +3,4 @@
 - [Anonymous access](anonymous-access.md) — no login gates; preserve database ownership, payments, diagnostics, and visitor analytics through anonymous browser sessions.
 - [Coolify deployment](coolify-deployment.md) — Linux arm64 behind Traefik HTTPS; verify the pruned container runtime, not only host production startup.
 - [Live output requirement](live-output.md) — show generated output word by word in a movable, resizable, collapsible Streaming window; never hide a completed-response wait.
+- [Evaluation standards](evaluation-standards.md) — private use; zero empathy or cushioning, never meanness; evidence-warranted top-three diagnostic rubrics in psychopathological mode.

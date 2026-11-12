@@ -6,6 +6,7 @@ import { LLMService, LLMProvider } from "./services/llmService";
 import { FileProcessor, upload } from "./services/fileProcessor";
 import { AnalysisEngine, AnalysisType } from "./services/analysisEngine";
 import { setupAnonymousAccess } from "./access";
+import { getEvaluationPolicy } from "./services/evaluationPolicy";
 import Stripe from "stripe";
 
 let stripeClient: Stripe | null | undefined;
@@ -315,7 +316,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }, 15000);
       }
 
-      const systemPrompt = `You are discussing an analysis that was performed on the following text. The user has concerns or questions about the analysis. Respond thoughtfully and offer to regenerate the analysis if appropriate.
+      const systemPrompt = `${getEvaluationPolicy(analysis.analysisType)}
+
+You are discussing an analysis of the following text. Answer the user's question with exact reasoning and evidence. Correct an erroneous prior conclusion directly; do not defend it to preserve consistency or soften it to reassure the user. Offer regeneration only when analytically relevant.
 
 Original text: ${analysis.inputText}
 User message: ${message}`;

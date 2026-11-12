@@ -1,5 +1,6 @@
 import { LLMService, LLMProvider } from './llmService';
 import * as tractatus from './tractatusMemory';
+import { ANALYTICAL_TONE_POLICY, getEvaluationPolicy, isDiagnosticRubricQuestion, diagnosticAnswerLength, DIAGNOSTIC_DIFFERENTIAL_POLICY } from './evaluationPolicy';
 import type { DocumentSkeleton } from './tractatusMemory';
 import { getPromptReferenceBlock } from './referenceStore';
 import fs from 'fs';
@@ -324,7 +325,7 @@ ${lengthInstruction}
 Text: ${this.truncateForQuestion(text)}`;
 
     let summary = '';
-    for await (const chunk of this.llmService.streamMessage(provider, prompt)) {
+    for await (const chunk of this.llmService.streamMessage(provider, prompt, ANALYTICAL_TONE_POLICY)) {
       summary += chunk;
       yield { type: 'summary', data: { content: summary, complete: false } };
     }
@@ -342,12 +343,13 @@ PSYCHOLOGICAL ANALYSIS — MANDATORY PROTOCOL RULES
 These rules are absolute. Violating any one of them invalidates the entire analysis.
 
 NUMBER ONE RULE: IF A TRAIT DOES NOT IMPAIR FUNCTIONALITY, IT IS NOT PSYCHOPATHOLOGICAL. IF IT ENHANCES FUNCTIONALITY, IT IS THE OPPOSITE OF PSYCHOPATHOLOGICAL. Apply this filter to every observation before stating it.
+Evaluate functionality across the domains actually described: relationships, reality testing, impulse control, work, and self-direction. Competence in one domain does not erase clear dysfunction in another. Do not invent impairment, and do not reframe evidenced impairment as a strength to cushion the conclusion.
 
 RULE: NEVER use the mere occurrence of a word as grounds for a characterization. If the author says he has "special knowledge" of someone's "hostile intentions," this does not mean psychosis or paranoia. He may have been physically attacked by that person on thirteen occasions and thereby acquired direct experiential knowledge of their hostility. Evaluate the CLAIM, not the vocabulary.
 
 RULE: Grandiosity is relevant ONLY as a descriptor, never as a diagnostic category. If grandiosity clearly mediates an obvious, independently verifiable dysfunction, it may be mentioned — but only to that extent. Self-confidence, even extreme self-confidence, may be accurate and may reflect healthy or hyper-functional ego-functioning. When in doubt, drop it entirely.
 
-RULE: Do NOT use "narcissism" as a diagnostic category. It is too ambiguous. If a behavior is functional, it is not a pathology. If it is dysfunctional, name the specific dysfunction without the label.
+RULE: Do NOT use vague "narcissism" as a catch-all diagnostic category or infer pathology from confidence alone. Name the specific dysfunction. In psychopathological mode, this does not prohibit a precisely named diagnostic rubric when its distinguishing pattern is clearly supported by the evidence.
 
 RULE: Attributing an event to oneself does not constitute projection. Projection is attributing one's own internal states to others. Naming a real person who committed a real act is description, not projection.
 
@@ -380,9 +382,9 @@ TONE AND FORMAT: Your answers must be starkly stated. No blandishments. No "I ca
 NO SCORES. These questions are descriptive and analytical. Do not append a Score: XX/100 to any answer. The analysis is qualitative.
 
 ════════════════════════════════════════════════════════════════
-FEW-SHOT EXAMPLES — THIS IS THE CALIBRATION STANDARD
+FEW-SHOT EXAMPLES — EVIDENTIAL METHOD, NOT DEFAULT VERDICTS
 The following are examples of correct answers. Study them for style, method, and depth.
-They are answers to a DIFFERENT text. Do not treat them as the answers for the text you are analyzing.
+They are answers to a DIFFERENT text. Preserve the method of deriving conclusions from evidence, not their favorable or unfavorable findings. Do not transfer validation, personal history, emotional approval, or a charitable interpretation to the current author. The zero-empathy system policy governs tone.
 ════════════════════════════════════════════════════════════════
 
 EXAMPLE QUESTION: Is the author's thought-process organized?
@@ -492,11 +494,17 @@ END OF PROTOCOL — NOW APPLY IT TO THE TEXT BELOW
 
     const isCognitive = analysisType.includes('cognitive');
     const isFingerprintVerdict = question.id === 'fp-verdict';
+    const isDescriptive = analysisType.includes('psychological') || analysisType.includes('psychopathological');
+    const isDiagnosticRubric = isDiagnosticRubricQuestion(analysisType, question.id);
 
-    const lengthInstruction = isFingerprintVerdict
+    const lengthInstruction = isDiagnosticRubric
+      ? diagnosticAnswerLength(verbosity)
+      : isFingerprintVerdict
       ? `RESPONSE LENGTH: Follow the mandatory output format exactly — Theoretical Power, Demonstrative Execution, Final Intelligence Score, Fingerprint Sentences, Analysis (120–180 words), Cognitive Characteristics. Do not truncate any field.`
       : verbosity === 'micro'
-        ? `RESPONSE LENGTH: One sentence — two at the absolute most. State your verdict and the score. Nothing else.`
+        ? isDescriptive
+          ? `RESPONSE LENGTH: One sentence — two at the absolute most. State your evidence-based verdict directly. No score, reassurance, or cushioning.`
+          : `RESPONSE LENGTH: One sentence — two at the absolute most. State your verdict and the score. Nothing else.`
         : verbosity === 'comprehensive'
           ? `RESPONSE LENGTH: Write two or more full paragraphs. In each paragraph: (1) state your sub-verdict on one dimension of the question, (2) quote the text directly — exact words in quotation marks — that constitutes your evidence, (3) explain step-by-step how that quotation drives your verdict. The derivation must be explicit: "This quote shows X because..." or "The phrase Y reveals Z in that...". Do not just illustrate — derive. Explore every dimension of the question thoroughly. Do not truncate.`
           : `RESPONSE LENGTH: One focused paragraph. Include at least one direct quote from the text (exact words in quotation marks) and explicitly state how it supports your verdict.`;
@@ -513,9 +521,9 @@ END OF PROTOCOL — NOW APPLY IT TO THE TEXT BELOW
       .filter(s => s.trim().length > 0)
       .join('\n\n');
 
-    const isDescriptive = analysisType.includes('psychological') || analysisType.includes('psychopathological');
-
-    const responseStructure = isFingerprintVerdict
+    const responseStructure = isDiagnosticRubric
+      ? DIAGNOSTIC_DIFFERENTIAL_POLICY
+      : isFingerprintVerdict
       ? `Use the MANDATORY OUTPUT FORMAT from the protocol above. No deviations. No markdown headers. No asterisks.`
       : isDescriptive
         ? `Structure your response as:
@@ -560,7 +568,7 @@ ${lengthInstruction}
 ${responseStructure}`;
 
     let answer = '';
-    for await (const chunk of this.llmService.streamMessage(provider, prompt)) {
+    for await (const chunk of this.llmService.streamMessage(provider, prompt, getEvaluationPolicy(analysisType))) {
       answer += chunk;
       yield {
         type: 'question',
@@ -584,8 +592,8 @@ ${responseStructure}`;
       type: 'question',
       data: {
         questionId: 'phase2',
-        question: 'Comprehensive Analysis — Phase 2 (Pushback Protocol)',
-        answer: 'Reviewing scores and challenging evaluations below 95/100…',
+        question: 'Comprehensive Analysis — Complete',
+        answer: 'All evaluation questions have been answered.',
         complete: true
       }
     };
@@ -668,7 +676,12 @@ ${responseStructure}`;
   }
 
   private getPsychopathologicalQuestions(): AnalysisQuestion[] {
-    return this.getPsychologicalQuestions();
+    return this.getPsychologicalQuestions().map(question => question.id === 'ps17'
+      ? {
+          ...question,
+          question: 'When the evidence clearly warrants it, what are the top three possible diagnostic rubrics, ranked from most to least supported? Name the specific rubrics (for example HPD or BPD, without restricting the possibilities to these examples), quote the evidence, and distinguish the closest alternatives. Give fewer than three if fewer are supported, or state directly that no specific rubric is clearly warranted. Separately identify any evidence-supported risk of future decompensation without presenting it as a current disorder. Identify material limits without reassurance or cushioning.',
+        }
+      : question);
   }
 
   private delay(ms: number): Promise<void> {
@@ -722,7 +735,7 @@ ${responseStructure}`;
         { id: 'cmp2', question: 'Defensive style and symptom profile: Compare the dominant defensive operations, neurotic traits, and any clinical signals — paranoid ideation, grandiosity, dissociation, splitting — visible in each document.' },
         { id: 'cmp3', question: 'Object relations and interpersonal world: Compare how each author represents other people — as full subjects, need-satisfying objects, persecutors, or extensions of the self. Which shows more fully human object relations?' },
         { id: 'cmp4', question: 'Risk and resilience: Which author shows greater psychiatric vulnerability under stress? Which shows more resilience, better-integrated defenses, and stronger ego functions?' },
-        { id: 'cmp5', question: 'Final head-to-head clinical verdict: On which dimensions do the two authors differ most dramatically? Which shows healthier overall functioning? What is the most clinically significant contrast between the two?' },
+        { id: 'cmp5', question: 'Final head-to-head clinical verdict: On which dimensions do the authors differ most, and which shows healthier overall functioning? For each author separately, when clearly warranted by the evidence, rank the top three possible diagnostic rubrics with supporting quotations and the decisive distinctions. Give fewer or none when the evidence does not warrant three. Do not transfer a rubric from one author to the other.' },
       ];
     }
 
@@ -778,13 +791,13 @@ COMPARISON QUESTION: ${q.question}
 
 Instructions:
 - Be specific and direct. Quote from both documents where helpful.
-- Cite actual scores where available from the individual reports.
+- ${baseType.includes('cognitive') ? 'Cite actual cognitive scores where available from the individual reports.' : 'Use qualitative findings only. Do not introduce scores, score floors, or numerical pathology rankings.'}
 - Do not hedge or equivocate. Make clear comparative verdicts.
 - Refer to the documents as "${labelA}" and "${labelB}" throughout.
 - Use NO formatting markup whatsoever (no **, *, ##, ---, etc.). Plain text only.`;
 
       let answer = '';
-      for await (const chunk of this.llmService.streamMessage(provider, prompt)) {
+      for await (const chunk of this.llmService.streamMessage(provider, prompt, getEvaluationPolicy(baseType))) {
         answer += chunk;
         yield { type: 'question', data: { questionId: q.id, question: q.question, answer, complete: false } };
       }
