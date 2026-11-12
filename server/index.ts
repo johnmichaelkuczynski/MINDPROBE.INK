@@ -2,7 +2,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import fs from "fs";
 import path from "path";
 import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
+import { serveStatic } from "./static";
+import { log } from "./logger";
 
 const app = express();
 
@@ -68,6 +69,7 @@ app.use((req, res, next) => {
   if (fs.existsSync(builtFrontend)) {
     serveStatic(app);
   } else {
+    const { setupVite } = await import("./vite");
     await setupVite(app, server);
   }
 
