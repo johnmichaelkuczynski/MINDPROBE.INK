@@ -5,6 +5,7 @@ import { Maximize2, Loader2, Download, Brain, CheckCircle2, AlertCircle } from "
 import { useSSE } from "@/hooks/useSSE";
 import { StreamEvent } from "@/types/analysis";
 import { useStreamingWindow } from "./StreamingProvider";
+import { CopyOutputButton } from "./CopyOutputButton";
 
 interface RealTimeResultsProps {
   analysisId: string | null;
@@ -154,6 +155,10 @@ export function RealTimeResults({ analysisId, isStreaming, onComplete, streamLab
     a.click();
     URL.revokeObjectURL(url);
   };
+
+  const outputText = results.some(result => result.content.trim())
+    ? results.map(result => `${result.type === "summary" ? "Text Summary & Categorization" : result.question || "Analysis"}\n\n${result.content}`).join("\n\n")
+    : "";
 
   const getStatusColor = () => {
     switch (streamingStatus) {
@@ -313,6 +318,7 @@ export function RealTimeResults({ analysisId, isStreaming, onComplete, streamLab
               <div className={`w-2 h-2 rounded-full ${getStatusColor()} ${streamingStatus === 'Streaming' ? 'animate-pulse' : ''}`} />
               <span className="text-sm text-gray-600" data-testid="text-streaming-status">{streamingStatus}</span>
             </div>
+            <CopyOutputButton text={outputText} />
             <Button
               variant="ghost"
               size="sm"

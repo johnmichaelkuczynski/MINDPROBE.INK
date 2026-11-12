@@ -2,8 +2,8 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { LLMProvider } from "@/types/analysis";
-import { Play, Pause, Square, Download, Copy, TreePine } from "lucide-react";
-import { useToast } from "@/hooks/use-toast";
+import { Play, Pause, Square, Download, TreePine } from "lucide-react";
+import { CopyOutputButton } from "./CopyOutputButton";
 
 interface ControlPanelProps {
   selectedLLM: LLMProvider;
@@ -21,6 +21,7 @@ interface ControlPanelProps {
   estimatedTime: string;
   canDownload: boolean;
   hasText?: boolean;
+  outputText?: string;
 }
 
 const llmOptions = [
@@ -44,25 +45,8 @@ export function ControlPanel({
   estimatedTime,
   canDownload,
   hasText = false,
+  outputText = "",
 }: ControlPanelProps) {
-  const { toast } = useToast();
-
-  const handleCopyToClipboard = async () => {
-    try {
-      // This would copy the current analysis results
-      await navigator.clipboard.writeText("Analysis results would be copied here");
-      toast({
-        title: "Copied to clipboard",
-        description: "Analysis results have been copied",
-      });
-    } catch (error) {
-      toast({
-        title: "Copy failed",
-        description: "Unable to copy to clipboard",
-        variant: "destructive",
-      });
-    }
-  };
 
   return (
     <div className="space-y-6">
@@ -191,16 +175,13 @@ export function ControlPanel({
               Download as TXT
             </Button>
             
-            <Button
-              onClick={handleCopyToClipboard}
-              disabled={!canDownload}
+            <CopyOutputButton
+              text={outputText}
+              label="Copy to Clipboard"
               variant="secondary"
               className="w-full"
-              data-testid="button-copy-clipboard"
-            >
-              <Copy className="h-4 w-4 mr-2" />
-              Copy to Clipboard
-            </Button>
+              testId="button-copy-clipboard"
+            />
           </div>
         </CardContent>
       </Card>

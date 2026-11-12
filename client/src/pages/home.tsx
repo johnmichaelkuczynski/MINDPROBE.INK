@@ -3,6 +3,7 @@ import { AnalysisSelector } from "@/components/AnalysisSelector";
 import { InputSection } from "@/components/InputSection";
 import { ControlPanel } from "@/components/ControlPanel";
 import { RealTimeResults } from "@/components/RealTimeResults";
+import { useStreamingWindow } from "@/components/StreamingProvider";
 import { DialogueSystem } from "@/components/DialogueSystem";
 import { ChunkSelector } from "@/components/ChunkSelector";
 import { DuoPanel } from "@/components/DuoPanel";
@@ -17,6 +18,7 @@ import { Button } from "@/components/ui/button";
 import { TextChunkingService, TextChunk } from "@shared/textUtils";
 
 export default function Home() {
+  const { getOutputText } = useStreamingWindow();
   const [selectedAnalysisType, setSelectedAnalysisType] = useState<AnalysisType>('cognitive');
   const [compareMode, setCompareMode] = useState(false);
   const [showTractatusTree, setShowTractatusTree] = useState(false);
@@ -370,6 +372,7 @@ export default function Home() {
                     setCurrentPhase("Stopped");
                   }}
                   onDownload={handleDownload}
+                  outputText={getOutputText(currentAnalysisId)}
                   onTractatusTree={() => setShowTractatusTree(true)}
                   isAnalyzing={isStarting || isAnalyzing}
                   progress={progress}

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type KeyboardEvent, type PointerEvent } fr
 import { createPortal } from "react-dom";
 import { useWordReveal } from "@/hooks/useWordReveal";
 import { Check, ChevronDown, ChevronUp, CircleAlert, Grip, LoaderCircle, X } from "lucide-react";
+import { CopyOutputButton } from "./CopyOutputButton";
 
 export interface StreamingWindowChannel {
   id: string;
@@ -333,6 +334,12 @@ export function StreamingWindow({ open, onClose, streams }: StreamingWindowProps
           </div>
         </div>
         <div className="flex shrink-0 items-center gap-1">
+          <CopyOutputButton
+            text={selectedChannel?.text ?? ""}
+            compact
+            testId="streaming-window-copy"
+            className="h-8 w-8 text-[#647b94] hover:bg-[#eaf2fb] hover:text-[#246fbd]"
+          />
           <button
             type="button"
             data-testid="streaming-window-collapse"

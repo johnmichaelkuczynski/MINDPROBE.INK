@@ -8,6 +8,7 @@ interface StreamingContextValue {
   startStream: (id: string, label: string) => void;
   receiveEvent: (id: string, event: StreamEvent) => void;
   reportError: (id: string, message: string) => void;
+  getOutputText: (id: string | null) => string;
 }
 
 const StreamingContext = createContext<StreamingContextValue | null>(null);
@@ -34,7 +35,10 @@ export function StreamingProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <StreamingContext.Provider value={{ startStream, receiveEvent, reportError }}>
+    <StreamingContext.Provider value={{
+      startStream, receiveEvent, reportError,
+      getOutputText: id => streams.find(stream => stream.id === id)?.text ?? "",
+    }}>
       {children}
       <StreamingWindow open={open} onClose={() => setOpen(false)} streams={streams} />
       {!open && streams.length > 0 && (
