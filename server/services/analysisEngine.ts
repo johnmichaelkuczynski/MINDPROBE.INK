@@ -3,6 +3,8 @@ import * as tractatus from './tractatusMemory';
 import { ANALYTICAL_TONE_POLICY, getEvaluationPolicy, isDiagnosticRubricQuestion, diagnosticAnswerLength, DIAGNOSTIC_DIFFERENTIAL_POLICY } from './evaluationPolicy';
 import type { DocumentSkeleton } from './tractatusMemory';
 import { getPromptReferenceBlock } from './referenceStore';
+import { getReportBudget, getReportLengthInstruction } from '../../shared/reportLength';
+import { formatReportParagraphs } from './reportFormatting';
 import fs from 'fs';
 import path from 'path';
 
@@ -238,7 +240,6 @@ ${ANTI_SYCOPHANCY_CLAUSES}`;
     additionalContext: string | undefined,
     provider: LLMProvider
   ): AsyncGenerator<{ type: 'skeleton' | 'summary' | 'question'; data: any }> {
-    const verbosity = this.getVerbosity(analysisType);
     const wc = this.wordCount(text);
 
     yield { type: 'skeleton', data: { status: 'extracting', message: 'Extracting document skeleton for cross-chunk coherence…' } };
@@ -262,38 +263,61 @@ ${ANTI_SYCOPHANCY_CLAUSES}`;
       await tractatus.skeletonToTier0(jobId, skeleton);
     }
 
-    yield* this.generateSummary(text, provider, verbosity, skeleton);
-
     const questions = this.getQuestions(analysisType);
-    const ledger: LedgerEntry[] = [];
-    const batchSize = 5;
-
-    for (let i = 0; i < questions.length; i += batchSize) {
-      const batch = questions.slice(i, i + batchSize);
-
-      for (const question of batch) {
-        let finalAnswer = '';
-        for await (const event of this.processQuestion(question, text, additionalContext, provider, verbosity, skeleton, ledger, jobId, analysisType)) {
-          finalAnswer = event.data.answer;
-          yield event;
-        }
-
-        const score = this.parseScore(finalAnswer);
-        const keyFinding = this.extractKeyFinding(finalAnswer);
-        ledger.push({ questionId: question.id, question: question.question, score, keyFinding });
-        await tractatus.updateLiveTier(jobId, { questionId: question.id, question: question.question, score, keyFinding });
-      }
-
-      if (i + batchSize < questions.length) {
-        await this.delay(10000);
-      }
+    const references = await Promise.all(questions.map(q => getPromptReferenceBlock(analysisType, q.id)));
+    const memoryContext = jobId !== 'memory-only' ? await tractatus.buildTieredPromptContext(jobId) : '';
+    let finalAnswer = '';
+    for await (const event of this.generateReport(
+      analysisType, text, additionalContext, provider, skeleton,
+      [memoryContext, ...references].filter(Boolean).join('\n\n')
+    )) {
+      finalAnswer = event.data.answer;
+      yield event;
     }
-
-    if (verbosity === 'comprehensive') {
-      yield* this.processComprehensivePhases(analysisType, text, provider, skeleton, ledger);
+    if (jobId !== 'memory-only') {
+      await tractatus.updateLiveTier(jobId, {
+        questionId: 'report',
+        question: `${getReportBudget(analysisType).label} integrated analysis`,
+        score: this.parseScore(finalAnswer),
+        keyFinding: this.extractKeyFinding(finalAnswer),
+      });
+      await tractatus.completeAnalysisJob(jobId);
     }
+  }
 
-    await tractatus.completeAnalysisJob(jobId);
+  private async *generateReport(
+    analysisType: AnalysisType,
+    text: string,
+    additionalContext: string | undefined,
+    provider: LLMProvider,
+    skeleton: DocumentSkeleton | null,
+    referenceContext = ''
+  ): AsyncGenerator<{ type: 'question'; data: any }> {
+    const budget = getReportBudget(analysisType);
+    const domain = analysisType.includes('psychopathological') ? 'Psychopathological'
+      : analysisType.includes('psychological') ? 'Psychological' : 'Cognitive';
+    const prompt = `DOCUMENT UNDER ANALYSIS — evaluate only this document:
+${this.truncateForQuestion(text)}
+END OF DOCUMENT
+
+${this.getDomainScoringCalibration(analysisType)}
+${this.completeInstructions}
+${this.formatSkeletonBlock(skeleton)}
+${referenceContext}
+${additionalContext ? `Additional context: ${additionalContext}` : ''}
+
+INTERNAL EVALUATION CHECKLIST — consider these dimensions, but do not print separate answers:
+${this.getQuestions(analysisType).map(q => q.question).join('\n')}
+
+${getReportLengthInstruction(analysisType)}`;
+    let answer = '';
+    const question = `${budget.label} ${domain} Analysis`;
+    const system = `${getEvaluationPolicy(analysisType)}\n\n${getReportLengthInstruction(analysisType)}`;
+    for await (const chunk of this.llmService.streamMessage(provider, prompt, system)) {
+      answer += chunk;
+      yield { type: 'question', data: { questionId: 'report', question, answer, complete: false } };
+    }
+    yield { type: 'question', data: { questionId: 'report', question, answer: formatReportParagraphs(answer, budget.paragraphs), complete: true } };
   }
 
   private async *generateSummary(
@@ -764,8 +788,8 @@ ${responseStructure}`;
     const truncA = this.truncateForQuestion(textA);
     const truncB = this.truncateForQuestion(textB);
 
-    for (const q of questions) {
-      const prompt = `You are producing a head-to-head comparative analysis of two documents.
+    const budget = getReportBudget(baseType);
+    const prompt = `You are producing one integrated head-to-head comparative report on two documents.
 
 ╔══════════════════════════════════════════════════════════════╗
 DOCUMENT A — ${labelA}
@@ -780,32 +804,32 @@ ${truncB}
 ╔══════════════════════════════════════════════════════════════╗
 INDIVIDUAL ANALYSIS REPORT FOR ${labelA}
 ╚══════════════════════════════════════════════════════════════╝
-${reportA.substring(0, 5000)}
+${reportA.substring(0, 12000)}
 
 ╔══════════════════════════════════════════════════════════════╗
 INDIVIDUAL ANALYSIS REPORT FOR ${labelB}
 ╚══════════════════════════════════════════════════════════════╝
-${reportB.substring(0, 5000)}
+${reportB.substring(0, 12000)}
 
-COMPARISON QUESTION: ${q.question}
+INTERNAL COMPARISON CHECKLIST — consider these dimensions, but do not print separate answers:
+${questions.map(q => q.question).join('\n')}
 
 Instructions:
 - Be specific and direct. Quote from both documents where helpful.
 - ${baseType.includes('cognitive') ? 'Cite actual cognitive scores where available from the individual reports.' : 'Use qualitative findings only. Do not introduce scores, score floors, or numerical pathology rankings.'}
 - Do not hedge or equivocate. Make clear comparative verdicts.
 - Refer to the documents as "${labelA}" and "${labelB}" throughout.
-- Use NO formatting markup whatsoever (no **, *, ##, ---, etc.). Plain text only.`;
+- Use NO formatting markup whatsoever (no **, *, ##, ---, etc.). Plain text only.
 
-      let answer = '';
-      for await (const chunk of this.llmService.streamMessage(provider, prompt, getEvaluationPolicy(baseType))) {
-        answer += chunk;
-        yield { type: 'question', data: { questionId: q.id, question: q.question, answer, complete: false } };
-      }
-      yield { type: 'question', data: { questionId: q.id, question: q.question, answer, complete: true } };
+${getReportLengthInstruction(baseType)}`;
 
-      if (q !== questions[questions.length - 1]) {
-        await this.delay(2000);
-      }
+    const system = `${getEvaluationPolicy(baseType)}\n\n${getReportLengthInstruction(baseType)}`;
+    const question = `${budget.label} Comparative Analysis`;
+    let answer = '';
+    for await (const chunk of this.llmService.streamMessage(provider, prompt, system)) {
+      answer += chunk;
+      yield { type: 'question', data: { questionId: 'report', question, answer, complete: false } };
     }
+    yield { type: 'question', data: { questionId: 'report', question, answer: formatReportParagraphs(answer, budget.paragraphs), complete: true } };
   }
 }

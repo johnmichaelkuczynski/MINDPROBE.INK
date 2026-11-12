@@ -11,6 +11,7 @@ interface RealTimeResultsProps {
   analysisId: string | null;
   isStreaming: boolean;
   onComplete?: () => void;
+  onError?: () => void;
   streamLabel?: string;
 }
 
@@ -30,7 +31,7 @@ interface SkeletonStatus {
   isExcerpt?: boolean;
 }
 
-export function RealTimeResults({ analysisId, isStreaming, onComplete, streamLabel = "Analysis" }: RealTimeResultsProps) {
+export function RealTimeResults({ analysisId, isStreaming, onComplete, onError, streamLabel = "Analysis" }: RealTimeResultsProps) {
   const [results, setResults] = useState<ProcessedResult[]>([]);
   const [streamingStatus, setStreamingStatus] = useState("Ready");
   const [isFullscreen, setIsFullscreen] = useState(false);
@@ -103,12 +104,16 @@ export function RealTimeResults({ analysisId, isStreaming, onComplete, streamLab
         result.complete ? result : { ...result, complete: true, interrupted: true }
       ));
       setStreamingStatus("Error");
+      onError?.();
     }
   });
 
   useEffect(() => {
-    if (error && analysisId) reportError(analysisId, `${error}. Partial output is preserved.`);
-  }, [error, analysisId, reportError]);
+    if (error && analysisId) {
+      reportError(analysisId, `${error}. Partial output is preserved.`);
+      onError?.();
+    }
+  }, [error, analysisId, reportError, onError]);
 
   useEffect(() => {
     if (isConnected) {
@@ -171,7 +176,7 @@ export function RealTimeResults({ analysisId, isStreaming, onComplete, streamLab
 
   const FINGERPRINT_FIELDS = ['Theoretical Power', 'Demonstrative Execution', 'Final Intelligence Score', 'Fingerprint Sentences', 'Analysis', 'Cognitive Characteristics'];
 
-  const formatContent = (content: string) => {
+  const formatContent = (content: string, integratedReport = false) => {
     const cleanContent = content
       .replace(/\*\*([^*]+)\*\*/g, '$1')
       .replace(/\*([^*]+)\*/g, '$1')
@@ -183,6 +188,12 @@ export function RealTimeResults({ analysisId, isStreaming, onComplete, streamLab
       .replace(/__([^_]+)__/g, '$1')
       .replace(/~~([^~]+)~~/g, '$1')
       .trim();
+
+    if (integratedReport) {
+      // Inline score labels belong to the paragraph. The historical field
+      // renderer would otherwise consume the first score and drop the rest.
+      return <div className="whitespace-pre-wrap text-gray-700 leading-relaxed">{cleanContent}</div>;
+    }
 
     return cleanContent
       .split('\n')
@@ -370,7 +381,7 @@ export function RealTimeResults({ analysisId, isStreaming, onComplete, streamLab
               </h3>
               <div className="bg-bg-off-white p-4 rounded-lg">
                 <div className={`streaming-content ${result.complete ? 'opacity-100' : 'opacity-70'}`}>
-                  {formatContent(result.content)}
+                {formatContent(result.content, result.questionId === 'report')}
                   {!result.complete && (
                     <div className="flex items-center space-x-2 mt-2">
                       <Loader2 className="h-4 w-4 animate-spin text-primary-blue" />

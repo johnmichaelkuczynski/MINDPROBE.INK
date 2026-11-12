@@ -288,7 +288,7 @@ export async function getPromptReferenceBlock(analysisType: string, questionId: 
     ]);
 
     const parts: string[] = [];
-    parts.push("REFERENCE LIMITS: These historical examples illustrate evidential reasoning only. Do not copy their conclusions, emotional validation, praise, personal history, or favorable assumptions into the current case. The current zero-empathy system policy and the current passage control the answer.");
+    if (goodExamples.length || badExamples.length) parts.push("REFERENCE LIMITS: These historical examples illustrate evidential reasoning only. Do not copy their conclusions, emotional validation, praise, personal history, or favorable assumptions into the current case. The current zero-empathy system policy and the current passage control the answer.");
 
     if (goodExamples.length > 0) {
       parts.push(`╔══ REFERENCE: CALIBRATION STANDARD FOR THIS QUESTION ══╗`);

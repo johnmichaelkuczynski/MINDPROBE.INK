@@ -14,32 +14,32 @@ const baseDomains = [
   {
     domain: "Cognitive",
     types: [
-      { id: 'micro-cognitive' as AnalysisType, title: 'Micro Cognitive', description: 'Fingerprint detection — rapid single-pass verdict', icon: Zap, badge: 'micro' },
-      { id: 'cognitive' as AnalysisType, title: 'Cognitive', description: 'Fingerprint detection — load-bearing cuts, generative power, lethality', icon: Lightbulb, badge: null },
-      { id: 'comprehensive-cognitive' as AnalysisType, title: 'Comprehensive Cognitive', description: 'Full fingerprint analysis with maximum analytical depth', icon: Brain, badge: 'full' },
+      { id: 'micro-cognitive' as AnalysisType, title: 'Micro Cognitive', description: 'Two-paragraph cognitive verdict', icon: Zap, badge: 'micro' },
+      { id: 'cognitive' as AnalysisType, title: 'Cognitive', description: 'About five paragraphs of cognitive analysis', icon: Lightbulb, badge: null },
+      { id: 'comprehensive-cognitive' as AnalysisType, title: 'Macro Cognitive', description: 'About ten paragraphs of cognitive analysis', icon: Brain, badge: 'macro' },
     ],
   },
   {
     domain: "Psychological",
     types: [
-      { id: 'micro-psychological' as AnalysisType, title: 'Micro Psychological', description: 'All 20 questions, razor-sharp answers', icon: Zap, badge: 'micro' },
-      { id: 'psychological' as AnalysisType, title: 'Psychological', description: 'Personality and behavioral assessment', icon: User, badge: null },
-      { id: 'comprehensive-psychological' as AnalysisType, title: 'Comprehensive Psychological', description: 'Full psychological profile with exhaustive depth', icon: Users, badge: 'full' },
+      { id: 'micro-psychological' as AnalysisType, title: 'Micro Psychological', description: 'Two-paragraph personality assessment', icon: Zap, badge: 'micro' },
+      { id: 'psychological' as AnalysisType, title: 'Psychological', description: 'About five paragraphs of personality analysis', icon: User, badge: null },
+      { id: 'comprehensive-psychological' as AnalysisType, title: 'Macro Psychological', description: 'About ten paragraphs of psychological analysis', icon: Users, badge: 'macro' },
     ],
   },
   {
     domain: "Psychopathological",
     types: [
-      { id: 'micro-psychopathological' as AnalysisType, title: 'Micro Psychopathological', description: 'All 20 questions, razor-sharp answers', icon: Zap, badge: 'micro' },
-      { id: 'psychopathological' as AnalysisType, title: 'Psychopathological', description: 'Clinical pathology assessment', icon: Stethoscope, badge: null },
-      { id: 'comprehensive-psychopathological' as AnalysisType, title: 'Comprehensive Psychopathological', description: 'Full clinical assessment with exhaustive depth', icon: ClipboardList, badge: 'full' },
+      { id: 'micro-psychopathological' as AnalysisType, title: 'Micro Psychopathological', description: 'Two-paragraph clinical assessment', icon: Zap, badge: 'micro' },
+      { id: 'psychopathological' as AnalysisType, title: 'Psychopathological', description: 'About five paragraphs of clinical analysis', icon: Stethoscope, badge: null },
+      { id: 'comprehensive-psychopathological' as AnalysisType, title: 'Macro Psychopathological', description: 'About ten paragraphs of clinical analysis', icon: ClipboardList, badge: 'macro' },
     ],
   },
 ];
 
 const badgeStyles: Record<string, string> = {
   micro: 'bg-amber-100 text-amber-700',
-  full: 'bg-purple-100 text-purple-700',
+  macro: 'bg-purple-100 text-purple-700',
   duo: 'bg-teal-100 text-teal-700',
 };
 

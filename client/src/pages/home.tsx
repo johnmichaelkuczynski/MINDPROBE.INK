@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useCallback } from "react";
 import { AnalysisSelector } from "@/components/AnalysisSelector";
 import { InputSection } from "@/components/InputSection";
 import { ControlPanel } from "@/components/ControlPanel";
@@ -55,7 +55,19 @@ export default function Home() {
     isUploading,
   } = useAnalysis();
 
-  const totalQuestions = 18; // This would vary based on analysis type
+  const totalQuestions = 1; // One integrated report, not separate question answers.
+  const handleReportComplete = useCallback(() => {
+    setIsAnalyzing(false);
+    setProgress(100);
+    setQuestionsProcessed(1);
+    setCurrentPhase("Complete");
+  }, []);
+  const handleReportError = useCallback(() => {
+    setIsAnalyzing(false);
+    setProgress(0);
+    setQuestionsProcessed(0);
+    setCurrentPhase("Error");
+  }, []);
 
   const handleStartAnalysis = async () => {
     if (!inputText.trim()) {
@@ -91,7 +103,7 @@ export default function Home() {
       setIsAnalyzing(true);
       setProgress(0);
       setQuestionsProcessed(0);
-      setCurrentPhase("Starting Analysis");
+      setCurrentPhase("Generating report");
       
       toast({
         title: "Analysis started",
@@ -219,32 +231,7 @@ export default function Home() {
     });
   };
 
-  // Simulate progress updates (in real implementation, this would come from SSE)
-  useEffect(() => {
-    if (isAnalyzing && questionsProcessed < totalQuestions) {
-      const interval = setInterval(() => {
-        setQuestionsProcessed(prev => {
-          const next = Math.min(prev + 1, totalQuestions);
-          setProgress((next / totalQuestions) * 100);
-          
-          if (next === totalQuestions) {
-            setIsAnalyzing(false);
-            setCurrentPhase("Complete");
-          } else {
-            setCurrentPhase(`Processing Question ${next + 1}`);
-          }
-          
-          return next;
-        });
-      }, 5000); // Simulate 5 seconds per question
-      
-      return () => clearInterval(interval);
-    }
-  }, [isAnalyzing, questionsProcessed, totalQuestions]);
-
-  const estimatedTimeRemaining = isAnalyzing 
-    ? `${Math.ceil(((totalQuestions - questionsProcessed) * 5) / 60)} min`
-    : "--";
+  const estimatedTimeRemaining = "--";
 
   return (
     <div className="min-h-screen bg-white">
@@ -391,6 +378,8 @@ export default function Home() {
               <RealTimeResults
                 analysisId={currentAnalysisId}
                 isStreaming={isAnalyzing}
+                onComplete={handleReportComplete}
+                onError={handleReportError}
               />
             </div>
 

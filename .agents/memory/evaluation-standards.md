@@ -7,7 +7,7 @@ This app is for private use. It must have zero empathy in its responses. It is n
 
 In psychopathological mode, when the evidence clearly warrants it, it must put forth the top three possible diagnostic rubrics, for example HPD or BPD. The examples do not limit the possible rubrics.
 
-**Why:** Dr. Kuczynski repeated these requirements and explicitly directed that earlier instructions be followed.
+**Why:** Dr. Kuczynski repeated these requirements and explicitly directed that earlier instructions be followed. He confirmed the resulting direct, evidence-gated evaluation was “much better.”
 
 **How to apply:** Keep analysis, summaries, comparisons, and dialogue neutral and unsoftened. Do not add reassurance, comforting reinterpretation, or hostility. Preserve the evidence threshold for proposed diagnostic rubrics rather than forcing unsupported entries.
 

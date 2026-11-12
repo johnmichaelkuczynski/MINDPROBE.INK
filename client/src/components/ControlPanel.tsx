@@ -122,7 +122,7 @@ export function ControlPanel({
           <h3 className="text-lg font-semibold mb-4">Progress</h3>
           <div className="space-y-4">
             <div className="flex justify-between text-sm">
-              <span>Questions Processed</span>
+              <span>Reports Completed</span>
               <span data-testid="text-questions-progress">{questionsProcessed} / {totalQuestions}</span>
             </div>
             <Progress value={progress} className="w-full" data-testid="progress-bar" />

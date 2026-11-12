@@ -7,6 +7,7 @@ import { FileProcessor, upload } from "./services/fileProcessor";
 import { AnalysisEngine, AnalysisType } from "./services/analysisEngine";
 import { setupAnonymousAccess } from "./access";
 import { getEvaluationPolicy } from "./services/evaluationPolicy";
+import { getReportBudget } from "../shared/reportLength";
 import Stripe from "stripe";
 
 let stripeClient: Stripe | null | undefined;
@@ -763,23 +764,29 @@ User message: ${message}`;
       return res.json({ steps, passed: false });
     }
 
-    // Step 2: Run analysis engine, collect summary + first question
-    let summaryReceived = false;
-    let questionAnswered = false;
+    // Step 2: Verify incremental output and one completed integrated report.
+    let incrementalOutput = false;
+    let reportReceived = false;
+    let reportText = "";
     let eventCount = 0;
     try {
       const engine = new AnalysisEngine();
       const deadline = Date.now() + 90000;
       for await (const event of engine.processAnalysis("micro-cognitive", sampleText, undefined, "zhi1")) {
         eventCount++;
-        if (event.type === "summary" && (event.data as any).complete) summaryReceived = true;
-        if (event.type === "question" && (event.data as any).complete) questionAnswered = true;
+        if (event.type === "question" && !(event.data as any).complete && (event.data as any).answer) incrementalOutput = true;
+        if (event.type === "question" && (event.data as any).complete && (event.data as any).questionId === "report") {
+          reportReceived = true;
+          reportText = (event.data as any).answer;
+        }
         if (Date.now() > deadline) break;
-        if (summaryReceived && questionAnswered) break;
+        if (reportReceived) break;
       }
-      steps.push({ step: "SSE Stream Started", status: "ok", detail: `Received ${eventCount} streaming events` });
-      steps.push({ step: "Summary Generated", status: summaryReceived ? "ok" : "error", detail: summaryReceived ? "Text summary & categorization received" : "No summary received" });
-      steps.push({ step: "Question Answered", status: questionAnswered ? "ok" : "error", detail: questionAnswered ? "First analysis question answered" : "No question answer received" });
+      steps.push({ step: "SSE Stream Started", status: incrementalOutput ? "ok" : "error", detail: `Received ${eventCount} events; incremental output ${incrementalOutput ? "received" : "missing"}` });
+      const budget = getReportBudget("micro-cognitive");
+      const paragraphs = reportText.trim() ? reportText.trim().split(/\n\s*\n/).length : 0;
+      const words = reportText.trim() ? reportText.trim().split(/\s+/).length : 0;
+      steps.push({ step: "Analysis Report Generated", status: reportReceived && paragraphs === budget.paragraphs && words <= budget.maxWords ? "ok" : "error", detail: reportReceived ? `Micro report: ${paragraphs} paragraphs, ${words} words (target ${budget.paragraphs} paragraphs; maximum ${budget.maxWords} words)` : "No completed report received" });
     } catch (e: any) {
       steps.push({ step: "Analysis Engine", status: "error", detail: e.message });
     }

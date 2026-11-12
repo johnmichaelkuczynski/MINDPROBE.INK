@@ -3,10 +3,9 @@ import { after, before, test } from "node:test";
 import { AnalysisEngine, type AnalysisType } from "../server/services/analysisEngine";
 import { storage } from "../server/storage";
 import {
-  ANALYTICAL_TONE_POLICY,
-  diagnosticAnswerLength,
   getEvaluationPolicy,
 } from "../server/services/evaluationPolicy";
+import { getReportBudget } from "../shared/reportLength";
 
 // Exercise actual prompt assembly without constructing the engine (which starts
 // database initialization), reading references, or contacting an LLM.
@@ -28,12 +27,9 @@ function captureEngine() {
   return { engine, calls };
 }
 
-async function captureQuestion(analysisType: AnalysisType, questionId: string) {
+async function captureReport(analysisType: AnalysisType) {
   const { engine, calls } = captureEngine();
-  const question = engine.getQuestions(analysisType).find((q: any) => q.id === questionId);
-  assert.ok(question);
-  const verbosity = analysisType.startsWith("micro-") ? "micro" : analysisType.startsWith("comprehensive-") ? "comprehensive" : "normal";
-  for await (const _ of engine.processQuestion(question, "A synthetic passage.", undefined, "zhi1", verbosity, null, [], "memory-only", analysisType)) {}
+  for await (const _ of engine.generateReport(analysisType, "A synthetic passage.", undefined, "zhi1", null)) {}
   return calls[0];
 }
 
@@ -77,50 +73,60 @@ test("psychopathological mode retains the existing questions apart from its diag
 
 test("the active diagnostic question preserves the ranking in all three verbosity levels", async () => {
   for (const analysisType of ["psychopathological", "micro-psychopathological", "comprehensive-psychopathological"] as AnalysisType[]) {
-    const call = await captureQuestion(analysisType, "ps17");
+    const call = await captureReport(analysisType);
     assert.match(call.system, /TOP THREE POSSIBLE DIAGNOSTIC RUBRICS/);
-    assert.match(call.prompt, /Histrionic Personality Disorder \(HPD\)/);
-    assert.match(call.prompt, /Borderline Personality Disorder \(BPD\)/);
-    assert.match(call.prompt, /not required answers or an exhaustive list/);
-    assert.match(call.prompt, /not established diagnoses/);
-    assert.match(call.prompt, /Do not fabricate candidates/);
+    assert.match(call.system, /Histrionic Personality Disorder \(HPD\)/);
+    assert.match(call.system, /Borderline Personality Disorder \(BPD\)/);
+    assert.match(call.system, /not required answers or an exhaustive list/);
+    assert.match(call.system, /not established diagnoses/);
+    assert.match(call.system, /Do not fabricate candidates/);
     assert.match(call.prompt, /ranked from most to least supported/);
-    if (analysisType.startsWith("micro-")) {
-      assert.match(call.prompt, /exception to the one-sentence micro limit/);
-    }
+    assert.match(call.system, /do not omit warranted candidates just to save space/);
   }
 });
 
 test("micro psychological answers no longer request scores; cognitive scoring remains intact", async () => {
   for (const analysisType of ["micro-psychological", "micro-psychopathological"] as AnalysisType[]) {
-    const call = await captureQuestion(analysisType, "ps1");
+    const call = await captureReport(analysisType);
     assert.match(call.system, /no numerical scores/);
-    assert.match(call.prompt, /State your evidence-based verdict directly. No score/);
+    assert.match(call.prompt, /NO SCORES/);
     assert.doesNotMatch(call.prompt, /State your verdict and the score/);
   }
-  const cognitive = await captureQuestion("micro-cognitive", "1");
-  assert.match(cognitive.prompt, /State your verdict and the score/);
+  const cognitive = await captureReport("micro-cognitive");
+  assert.match(cognitive.prompt, /Final Intelligence Score/);
+  assert.doesNotMatch(cognitive.system, /no numerical scores/);
 });
 
-test("summaries and comparisons use the same tone policy; comparison ranks each author separately", async () => {
+test("comparisons have one report budget and rank each author separately when warranted", async () => {
   const { engine, calls } = captureEngine();
-  for await (const _ of engine.generateSummary("Synthetic text.", "zhi1", "normal", null)) {}
-  assert.equal(calls[0].system, ANALYTICAL_TONE_POLICY);
-  for await (const _ of engine.processCompareAnalysis("psychopathological", "A", "B", "Author A", "Author B", [], [], "zhi1")) {}
-  assert.equal(calls.length, 6);
-  for (const call of calls.slice(1)) {
-    assert.match(call.system, /ZERO EMPATHY/);
-    assert.match(call.prompt, /Use qualitative findings only/);
-  }
-  assert.match(calls[5].prompt, /For each author separately/);
-  assert.match(calls[5].prompt, /Give fewer or none/);
+  const events = [];
+  for await (const event of engine.processCompareAnalysis("micro-psychopathological", "A", "B", "Author A", "Author B", [], [], "zhi1")) events.push(event);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0].system, /ZERO EMPATHY/);
+  assert.match(calls[0].system, /2 paragraphs TOTAL/);
+  assert.match(calls[0].prompt, /Use qualitative findings only/);
+  assert.match(calls[0].prompt, /For each author separately/);
+  assert.match(calls[0].prompt, /Give fewer or none/);
+  assert.equal(events.filter(e => e.data.complete).length, 1);
 });
 
-test("comprehensive completion no longer advertises upward-only score pressure", async () => {
-  const { engine } = captureEngine();
-  const events = [];
-  for await (const event of engine.processComprehensivePhases("comprehensive-psychopathological", "text", "zhi1", null, [])) events.push(event);
-  assert.doesNotMatch(JSON.stringify(events), /95\/100|Pushback|challenging evaluations/);
-  assert.match(JSON.stringify(events), /All evaluation questions have been answered/);
-  assert.match(diagnosticAnswerLength("comprehensive"), /counterevidence/);
+test("the real analysis pipeline streams one integrated 2/5/10-paragraph report in every mode", async () => {
+  for (const domain of ["cognitive", "psychological", "psychopathological"]) {
+    for (const prefix of ["micro-", "", "comprehensive-"]) {
+      const analysisType = (prefix + domain) as AnalysisType;
+      const { engine, calls } = captureEngine();
+      engine.extractSkeleton = async () => null;
+      const events = [];
+      for await (const event of engine.processAnalysis(analysisType, "Synthetic passage.", undefined, "zhi1")) events.push(event);
+      assert.equal(calls.length, 1, analysisType);
+      assert.match(calls[0].system, new RegExp(`${getReportBudget(analysisType).paragraphs} paragraphs TOTAL`));
+      assert.match(calls[0].system, /NOT a per-question allowance/);
+      assert.equal(events.filter(e => e.type === "summary").length, 0);
+      const completed = events.filter(e => e.type === "question" && e.data.complete);
+      assert.equal(completed.length, 1);
+      assert.equal(completed[0].data.questionId, "report");
+      assert.ok(events.some(e => e.type === "question" && !e.data.complete));
+      assert.doesNotMatch(JSON.stringify(events), /95\/100|Pushback|challenging evaluations/);
+    }
+  }
 });
