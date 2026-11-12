@@ -1,3 +1,4 @@
 - [Tractatus-Skeleton Architecture](tractatus-skeleton.md) — 3-pass coherence system for long-doc evaluation; Neon tables initialized on server start.
 - [LLM Model Fixes](llm-models.md) — gpt-4o-mini (128k) for ZHI 1; Anthropic model pinned to claude-3-5-sonnet-20241022 (sonnet-4 returns 404).
 - [Anonymous access](anonymous-access.md) — no login gates; preserve database ownership, payments, diagnostics, and visitor analytics through anonymous browser sessions.
+- [Coolify deployment](coolify-deployment.md) — Linux arm64 behind Traefik HTTPS; verify the pruned container runtime, not only host production startup.
