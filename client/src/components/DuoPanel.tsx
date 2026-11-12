@@ -292,7 +292,7 @@ export function DuoPanel({ selectedAnalysisType, selectedLLM, onNewAnalysis }: D
                 <div className="w-3 h-3 rounded-full bg-teal-500" />
                 <h3 className="font-bold text-teal-700 uppercase tracking-wide text-sm">{speakerAName}</h3>
               </div>
-              <RealTimeResults analysisId={analysisIdA} isStreaming={true} />
+              <RealTimeResults analysisId={analysisIdA} isStreaming={true} streamLabel="Text A" />
             </div>
             {/* Speaker B */}
             <div className="space-y-2">
@@ -300,7 +300,7 @@ export function DuoPanel({ selectedAnalysisType, selectedLLM, onNewAnalysis }: D
                 <div className="w-3 h-3 rounded-full bg-indigo-500" />
                 <h3 className="font-bold text-indigo-700 uppercase tracking-wide text-sm">{speakerBName}</h3>
               </div>
-              <RealTimeResults analysisId={analysisIdB} isStreaming={true} />
+              <RealTimeResults analysisId={analysisIdB} isStreaming={true} streamLabel="Text B" />
             </div>
           </div>
         </>

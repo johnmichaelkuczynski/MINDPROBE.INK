@@ -2,8 +2,11 @@ import { useState } from 'react';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { apiRequest } from '@/lib/queryClient';
 import { AnalysisConfig, AnalysisResult, DialogueMessage } from '@/types/analysis';
+import { useStreamingWindow } from "@/components/StreamingProvider";
+import { readEventStream } from "@/lib/read-event-stream";
 
 export function useAnalysis() {
+  const { startStream, receiveEvent, reportError } = useStreamingWindow();
   const [currentAnalysisId, setCurrentAnalysisId] = useState<string | null>(null);
 
   const startAnalysisMutation = useMutation({
@@ -46,11 +49,27 @@ export function useAnalysis() {
 
   const sendDialogueMutation = useMutation({
     mutationFn: async ({ analysisId, message }: { analysisId: string; message: string }) => {
-      const response = await apiRequest('POST', `/api/analysis/${analysisId}/dialogue`, { message });
-      return response.json();
+      const streamId = `dialogue:${crypto.randomUUID()}`;
+      startStream(streamId, "Dialogue");
+      try {
+        const response = await fetch(`/api/analysis/${analysisId}/dialogue`, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json", Accept: "text/event-stream" },
+          body: JSON.stringify({ message }),
+        });
+        return await readEventStream(response, event => receiveEvent(streamId, event));
+      } catch (error) {
+        reportError(streamId, error instanceof Error ? error.message : "Dialogue stream interrupted");
+        throw error;
+      }
     },
     onSuccess: () => {
       // Refetch dialogue messages
+      dialogueQuery.refetch();
+    },
+    onError: () => {
+      // The server preserves the user message and any partial reply on interruption.
       dialogueQuery.refetch();
     }
   });

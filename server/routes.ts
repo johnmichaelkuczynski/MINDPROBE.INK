@@ -119,6 +119,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         'Access-Control-Allow-Headers': 'Cache-Control'
       });
       res.flushHeaders();
+      res.socket?.setNoDelay(true);
 
       // Keep long coherence passes alive without creating client-visible events.
       const heartbeat = setInterval(() => {
@@ -283,21 +284,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Dialogue endpoints
   app.post("/api/analysis/:id/dialogue", async (req, res) => {
+    const analysisId = req.params.id;
+    const live = req.get("accept")?.includes("text/event-stream");
+    let partial = "";
+    let responseSaved = false;
+    let heartbeat: ReturnType<typeof setInterval> | undefined;
     try {
       const { message } = req.body;
-      const analysisId = req.params.id;
-
-      // Save user message
-      await storage.createDialogueMessage({
-        analysisId,
-        sender: "user",
-        message
-      });
+      if (typeof message !== "string" || !message.trim()) {
+        return res.status(400).json({ error: "A dialogue message is required" });
+      }
 
       // Generate system response using LLM
       const analysis = await storage.getAnalysis(analysisId);
       if (!analysis) {
         return res.status(404).json({ error: "Analysis not found" });
+      }
+      await storage.createDialogueMessage({ analysisId, sender: "user", message });
+      if (live) {
+        res.writeHead(200, {
+          "Content-Type": "text/event-stream",
+          "Cache-Control": "no-cache, no-transform",
+          "Connection": "keep-alive",
+          "X-Accel-Buffering": "no",
+        });
+        res.flushHeaders();
+        res.socket?.setNoDelay(true);
+        heartbeat = setInterval(() => {
+          if (!res.writableEnded) res.write(": keep-alive\n\n");
+        }, 15000);
       }
 
       const systemPrompt = `You are discussing an analysis that was performed on the following text. The user has concerns or questions about the analysis. Respond thoughtfully and offer to regenerate the analysis if appropriate.
@@ -305,23 +320,50 @@ export async function registerRoutes(app: Express): Promise<Server> {
 Original text: ${analysis.inputText}
 User message: ${message}`;
 
-      const response = await llmService.sendMessage(
+      for await (const chunk of llmService.streamMessage(
         analysis.llmProvider as LLMProvider,
         message,
         systemPrompt
-      );
+      )) {
+        partial += chunk;
+        if (live) res.write(`data: ${JSON.stringify({
+          type: "question",
+          data: { questionId: "reply", question: "Response", answer: partial, complete: false },
+        })}\n\n`);
+      }
 
       // Save system response
       const systemMessage = await storage.createDialogueMessage({
         analysisId,
         sender: "system",
-        message: response.content
+        message: partial
       });
+      responseSaved = true;
 
-      res.json({ success: true, response: systemMessage });
+      if (live) {
+        res.write(`data: ${JSON.stringify({ type: "question", data: {
+          questionId: "reply", question: "Response", answer: partial, complete: true,
+        } })}\n\n`);
+        res.end(`data: ${JSON.stringify({ type: "complete", data: { message: systemMessage } })}\n\n`);
+      } else {
+        res.json({ success: true, response: systemMessage });
+      }
     } catch (error) {
       console.error("Dialogue error:", error);
-      res.status(500).json({ error: "Failed to process dialogue" });
+      if (partial && !responseSaved) {
+        await storage.createDialogueMessage({
+          analysisId, sender: "system", message: `${partial}\n\n[Response interrupted.]`,
+        }).catch(saveError => console.error("Failed to preserve partial dialogue:", saveError));
+      }
+      if (res.headersSent) {
+        res.end(`data: ${JSON.stringify({ type: "error", data: {
+          message: "Dialogue interrupted. Partial output has been preserved.", interrupted: true,
+        } })}\n\n`);
+      } else {
+        res.status(500).json({ error: "Failed to process dialogue" });
+      }
+    } finally {
+      if (heartbeat) clearInterval(heartbeat);
     }
   });
 

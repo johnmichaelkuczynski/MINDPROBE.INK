@@ -25,6 +25,8 @@ export function useSSE<T>(url: string | null, onMessage?: (data: T) => void) {
   const [isConnected, setIsConnected] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const eventSourceRef = useRef<EventSource | null>(null);
+  const onMessageRef = useRef(onMessage);
+  onMessageRef.current = onMessage;
   // Tracks whether we intentionally closed — prevents reconnect
   const doneRef = useRef(false);
 
@@ -38,6 +40,9 @@ export function useSSE<T>(url: string | null, onMessage?: (data: T) => void) {
     }
 
     doneRef.current = false;
+    setData([]);
+    setError(null);
+    setIsConnected(false);
 
     const eventSource = new EventSource(url);
     eventSourceRef.current = eventSource;
@@ -57,7 +62,7 @@ export function useSSE<T>(url: string | null, onMessage?: (data: T) => void) {
       try {
         const parsedData = JSON.parse(event.data) as T;
         setData(prev => mergeLatestEvent(prev, parsedData));
-        onMessage?.(parsedData);
+        onMessageRef.current?.(parsedData);
 
         // Close permanently when the server signals done or error
         const typed = parsedData as any;

@@ -1,4 +1,5 @@
 import OpenAI from "openai";
+import { readProviderText } from "./providerStream";
 import Anthropic from '@anthropic-ai/sdk';
 
 /*
@@ -20,22 +21,6 @@ export type LLMProvider = "zhi1" | "zhi2" | "zhi3" | "zhi4" | "zhi5" | "zhi6";
 export interface LLMResponse {
   content: string;
   provider: LLMProvider;
-}
-
-const FALLBACK_CHUNK_WORDS = 300;
-
-export function chunkTextByWords(text: string, maxWords = FALLBACK_CHUNK_WORDS): string[] {
-  if (!text) return [];
-  if (!Number.isInteger(maxWords) || maxWords < 1) {
-    throw new Error('maxWords must be a positive integer');
-  }
-
-  const wordsWithSpacing = text.match(/\S+\s*/g) ?? [];
-  const chunks: string[] = [];
-  for (let i = 0; i < wordsWithSpacing.length; i += maxWords) {
-    chunks.push(wordsWithSpacing.slice(i, i + maxWords).join(''));
-  }
-  return chunks;
 }
 
 export class LLMService {
@@ -113,43 +98,20 @@ export class LLMService {
     }
 
     let emitted = false;
-    let nativeStreamError: Error | null = null;
     try {
       for await (const chunk of source) {
         if (!chunk) continue;
         if (chunk.startsWith('Error:')) {
-          nativeStreamError = new Error(chunk.replace(/^Error:\s*/, ''));
-          if (emitted) throw nativeStreamError;
-          break;
+          throw new Error(chunk.replace(/^Error:\s*/, ''));
         }
         emitted = true;
         yield chunk;
       }
-    } catch (error) {
-      if (emitted) throw error;
-      nativeStreamError = error instanceof Error ? error : new Error('Native stream failed');
-      console.error(`[${provider}] Native stream unavailable, using bounded fallback:`, error);
-    }
-
-    if (emitted) return;
-    if (nativeStreamError) {
-      console.error(`[${provider}] Native stream unavailable, using bounded fallback:`, nativeStreamError.message);
-    }
-
-    try {
-      const response = await this.sendMessage(provider, message, systemPrompt);
-      const chunks = chunkTextByWords(response.content);
-      if (chunks.length === 0) {
-        throw new Error(`No response received from ${provider}`);
-      }
-      for (const chunk of chunks) {
-        yield chunk;
-        // Give SSE a chance to flush each bounded fallback chunk separately.
-        await new Promise<void>(resolve => setTimeout(resolve, 0));
-      }
+      if (!emitted) throw new Error("The provider returned an empty live stream");
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-      throw new Error(`${provider} API failed - ${errorMessage}. Please try a different LLM provider.`);
+      // Never hide a broken live stream behind a completed-response request.
+      throw new Error(`${provider} live stream failed - ${errorMessage}. Please try a different LLM provider.`);
     }
   }
 
@@ -305,30 +267,7 @@ export class LLMService {
       }),
     });
 
-    const reader = response.body?.getReader();
-    if (!reader) return;
-
-    const decoder = new TextDecoder();
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-
-      const chunk = decoder.decode(value);
-      const lines = chunk.split('\n').filter(line => line.trim().startsWith('data: '));
-      
-      for (const line of lines) {
-        const data = line.replace('data: ', '');
-        if (data === '[DONE]') return;
-        
-        try {
-          const parsed = JSON.parse(data);
-          const content = parsed.choices[0]?.delta?.content;
-          if (content) yield content;
-        } catch (e) {
-          // Skip invalid JSON
-        }
-      }
-    }
+    yield* readProviderText(response);
   }
 
   private async sendVeniceMessage(message: string, systemPrompt?: string): Promise<LLMResponse> {
@@ -379,34 +318,10 @@ export class LLMService {
         return;
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        yield "Error: Failed to read Venice response stream.";
-        return;
-      }
-
-      const decoder = new TextDecoder();
       let totalContent = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n').filter(line => line.trim().startsWith('data: '));
-
-        for (const line of lines) {
-          const data = line.replace('data: ', '');
-          if (data === '[DONE]') {
-            console.log(`[Venice] Stream completed. Total content length: ${totalContent.length}`);
-            return;
-          }
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices[0]?.delta?.content;
-            if (content) { totalContent += content; yield content; }
-          } catch (e) { /* skip invalid JSON */ }
-        }
+      for await (const content of readProviderText(response)) {
+        totalContent += content;
+        yield content;
       }
 
       if (totalContent.length === 0) {
@@ -467,34 +382,10 @@ export class LLMService {
         return;
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        yield "Error: Failed to read Grok response stream.";
-        return;
-      }
-
-      const decoder = new TextDecoder();
       let totalContent = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n').filter(line => line.trim().startsWith('data: '));
-
-        for (const line of lines) {
-          const data = line.replace('data: ', '');
-          if (data === '[DONE]') {
-            console.log(`[Grok] Stream completed. Total content length: ${totalContent.length}`);
-            return;
-          }
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices[0]?.delta?.content;
-            if (content) { totalContent += content; yield content; }
-          } catch (e) { /* skip invalid JSON */ }
-        }
+      for await (const content of readProviderText(response)) {
+        totalContent += content;
+        yield content;
       }
 
       if (totalContent.length === 0) {
@@ -566,41 +457,10 @@ export class LLMService {
         return;
       }
 
-      const reader = response.body?.getReader();
-      if (!reader) {
-        console.error('[Perplexity] No response body reader available');
-        yield "Error: Failed to read Perplexity response stream. Please try a different LLM provider.";
-        return;
-      }
-
-      const decoder = new TextDecoder();
       let totalContent = '';
-      
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split('\n').filter(line => line.trim().startsWith('data: '));
-        
-        for (const line of lines) {
-          const data = line.replace('data: ', '');
-          if (data === '[DONE]') {
-            console.log(`[Perplexity] Stream completed. Total content length: ${totalContent.length}`);
-            return;
-          }
-          
-          try {
-            const parsed = JSON.parse(data);
-            const content = parsed.choices[0]?.delta?.content;
-            if (content) {
-              totalContent += content;
-              yield content;
-            }
-          } catch (e) {
-            // Skip invalid JSON - this is normal for SSE streams
-          }
-        }
+      for await (const content of readProviderText(response)) {
+        totalContent += content;
+        yield content;
       }
       
       console.log(`[Perplexity] Stream completed. Total content length: ${totalContent.length}`);

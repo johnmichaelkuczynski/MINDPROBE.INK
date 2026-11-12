@@ -299,6 +299,7 @@ export function ComparePanel({ selectedAnalysisType, selectedLLM, onNewAnalysis 
           </div>
           <RealTimeResults
             analysisId={analysisIdA}
+            streamLabel={docA.label}
             isStreaming={true}
             onComplete={handleCompleteA}
           />
@@ -310,6 +311,7 @@ export function ComparePanel({ selectedAnalysisType, selectedLLM, onNewAnalysis 
           </div>
           <RealTimeResults
             analysisId={analysisIdB}
+            streamLabel={docB.label}
             isStreaming={true}
             onComplete={handleCompleteB}
           />
@@ -334,7 +336,7 @@ export function ComparePanel({ selectedAnalysisType, selectedLLM, onNewAnalysis 
           )}
         </div>
         {analysisIdC ? (
-          <RealTimeResults analysisId={analysisIdC} isStreaming={true} />
+          <RealTimeResults analysisId={analysisIdC} isStreaming={true} streamLabel="Comparison" />
         ) : (
           <Card className="border-indigo-100 border-dashed">
             <CardContent className="p-8 text-center text-gray-400 text-sm">

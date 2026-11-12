@@ -4,11 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Maximize2, Loader2, Download, Brain, CheckCircle2, AlertCircle } from "lucide-react";
 import { useSSE } from "@/hooks/useSSE";
 import { StreamEvent } from "@/types/analysis";
+import { useStreamingWindow } from "./StreamingProvider";
 
 interface RealTimeResultsProps {
   analysisId: string | null;
   isStreaming: boolean;
   onComplete?: () => void;
+  streamLabel?: string;
 }
 
 interface ProcessedResult {
@@ -27,16 +29,21 @@ interface SkeletonStatus {
   isExcerpt?: boolean;
 }
 
-export function RealTimeResults({ analysisId, isStreaming, onComplete }: RealTimeResultsProps) {
+export function RealTimeResults({ analysisId, isStreaming, onComplete, streamLabel = "Analysis" }: RealTimeResultsProps) {
   const [results, setResults] = useState<ProcessedResult[]>([]);
   const [streamingStatus, setStreamingStatus] = useState("Ready");
   const [isFullscreen, setIsFullscreen] = useState(false);
   const [skeletonStatus, setSkeletonStatus] = useState<SkeletonStatus>({ phase: 'idle', message: '' });
+  const { startStream, receiveEvent, reportError } = useStreamingWindow();
+
+  useEffect(() => {
+    if (analysisId) startStream(analysisId, streamLabel);
+  }, [analysisId, streamLabel, startStream]);
 
   const streamUrl = analysisId ? `/api/analysis/${analysisId}/stream` : null;
   
   const { data: streamData, isConnected, error } = useSSE<StreamEvent>(streamUrl, (event) => {
-    console.log('RealTimeResults received event:', event);
+    if (analysisId) receiveEvent(analysisId, event);
     
     if (event.type === 'skeleton') {
       const d = event.data as any;
@@ -53,7 +60,6 @@ export function RealTimeResults({ analysisId, isStreaming, onComplete }: RealTim
         setSkeletonStatus({ phase: 'failed', message: d.message });
       }
     } else if (event.type === 'summary') {
-      console.log('Processing summary event:', event.data);
       setResults(prev => {
         const existingSummaryIndex = prev.findIndex(r => r.type === 'summary');
         const newResult: ProcessedResult = {
@@ -66,11 +72,9 @@ export function RealTimeResults({ analysisId, isStreaming, onComplete }: RealTim
           ? prev.map((r, i) => i === existingSummaryIndex ? newResult : r)
           : [newResult, ...prev];
         
-        console.log('Updated results after summary:', updatedResults);
         return updatedResults;
       });
     } else if (event.type === 'question') {
-      console.log('Processing question event:', event.data);
       setResults(prev => {
         const existingQuestionIndex = prev.findIndex(r => 
           r.type === 'question' && r.questionId === event.data.questionId
@@ -88,23 +92,22 @@ export function RealTimeResults({ analysisId, isStreaming, onComplete }: RealTim
           ? prev.map((r, i) => i === existingQuestionIndex ? newResult : r)
           : [...prev, newResult];
         
-        console.log('Updated results after question:', updatedResults);
         return updatedResults;
       });
     } else if (event.type === 'complete') {
-      console.log('Analysis complete event received');
       setStreamingStatus("Complete");
       onComplete?.();
     } else if (event.type === 'error') {
-      console.log('Analysis error event received:', event);
       setResults(prev => prev.map(result =>
         result.complete ? result : { ...result, complete: true, interrupted: true }
       ));
       setStreamingStatus("Error");
-    } else {
-      console.log('Unknown event type received:', event);
     }
   });
+
+  useEffect(() => {
+    if (error && analysisId) reportError(analysisId, `${error}. Partial output is preserved.`);
+  }, [error, analysisId, reportError]);
 
   useEffect(() => {
     if (isConnected) {
@@ -117,11 +120,9 @@ export function RealTimeResults({ analysisId, isStreaming, onComplete }: RealTim
   }, [isConnected, error, analysisId]);
 
   useEffect(() => {
-    if (!analysisId) {
-      setResults([]);
-      setStreamingStatus("Ready");
-      setSkeletonStatus({ phase: 'idle', message: '' });
-    }
+    setResults([]);
+    setStreamingStatus(analysisId ? "Connecting" : "Ready");
+    setSkeletonStatus({ phase: 'idle', message: '' });
   }, [analysisId]);
 
   const handleDownload = () => {
