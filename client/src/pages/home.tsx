@@ -255,14 +255,14 @@ export default function Home() {
                 href="https://zhisystems.ai/"
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Visit ZHI Systems AI"
-                title="ZHI Systems AI"
+                aria-label="ZHI Systems — visit zhisystems.ai"
+                title="ZHI Systems"
                 className="shrink-0 rounded-md transition-transform hover:scale-105 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-blue focus-visible:ring-offset-2"
               >
                 <img
                   src="/zhi-logo.png"
-                  alt="ZHI"
-                  className="h-8 w-8 rounded-md object-contain shadow-sm"
+                  alt="ZHI Systems"
+                  className="h-12 w-16 rounded-md object-contain"
                 />
               </a>
               <h1 className="text-2xl font-bold text-text-primary">Mind Probe</h1>
