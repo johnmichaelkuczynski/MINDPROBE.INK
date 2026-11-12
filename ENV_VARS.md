@@ -6,7 +6,8 @@ Set these in Coolify. Do not commit real credentials.
 
 | Variable | Required | Expected value |
 | --- | --- | --- |
-| `DATABASE_URL` | Yes | Standard PostgreSQL connection URL, for example `postgresql://user:password@host:5432/database`. Used for application data, anonymous sessions, and Tractatus tables. |
+| `DATABASE_URL` | Yes, unless `NEON_DATABASE_URL` is set | Standard PostgreSQL connection URL, for example `postgresql://user:password@host:5432/database`. Used for application data, anonymous sessions, and Tractatus tables. |
+| `NEON_DATABASE_URL` | No | Explicit external Neon PostgreSQL connection string, including its password and SSL settings. When set, this takes precedence over `DATABASE_URL` for every app pool and schema command. |
 | `SESSION_SECRET` | Yes in production | Long, random secret used to sign session cookies. Use at least 32 random bytes. The development server has a local-only fallback; production intentionally refuses to start without this value. |
 
 ## Runtime settings
@@ -40,4 +41,4 @@ The server starts without these credentials. Only the associated feature/provide
 
 ## Not needed
 
-This app has anonymous browser sessions, not a login/OAuth flow, so no OAuth callback URL or `PUBLIC_BASE_URL` is read. The public canonical URL is configured in the HTML metadata. `NEON_DATABASE_URL` is not used; provide the standard `DATABASE_URL`.
+This app has anonymous browser sessions, not a login/OAuth flow, so no OAuth callback URL or `PUBLIC_BASE_URL` is read. The public canonical URL is configured in the HTML metadata.

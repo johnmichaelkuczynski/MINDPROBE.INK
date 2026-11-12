@@ -2,8 +2,9 @@ import { type User, type InsertUser, type UserVisit, type AnalysisResult, type I
 import { eq, desc, isNull, gte, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/node-postgres";
 import { Pool } from "pg";
+import { getDatabaseUrl } from "./database";
 
-const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+const pool = new Pool({ connectionString: getDatabaseUrl() });
 const db = drizzle(pool);
 
 export interface IStorage {

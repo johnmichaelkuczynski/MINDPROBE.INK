@@ -5,6 +5,7 @@ import type { User } from "@shared/schema";
 import { storage } from "./storage";
 import pg from "pg";
 import { randomUUID } from "crypto";
+import { getDatabaseUrl } from "./database";
 
 declare module "express-session" {
   interface SessionData {
@@ -24,14 +25,9 @@ declare global {
 export function setupAnonymousAccess(app: Express) {
   app.set("trust proxy", 1);
 
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is required for database and session storage");
-  }
-
   const PgSession = connectPgSimple(session);
   const pool = new pg.Pool({
-    connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
+    connectionString: getDatabaseUrl(),
   });
 
   pool.on("error", (error) => {

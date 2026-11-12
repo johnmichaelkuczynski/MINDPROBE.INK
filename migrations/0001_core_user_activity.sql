@@ -68,3 +68,11 @@ CREATE INDEX IF NOT EXISTS analysis_results_user_id_created_at_idx
   ON public.analysis_results (user_id, created_at DESC);
 CREATE INDEX IF NOT EXISTS dialogue_messages_analysis_id_created_at_idx
   ON public.dialogue_messages (analysis_id, created_at);
+
+CREATE TABLE IF NOT EXISTS public.user_sessions (
+  sid varchar PRIMARY KEY,
+  sess json NOT NULL,
+  expire timestamp(6) NOT NULL
+);
+CREATE INDEX IF NOT EXISTS user_sessions_expire_idx
+  ON public.user_sessions (expire);
